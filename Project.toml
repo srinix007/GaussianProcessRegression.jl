@@ -1,4 +1,5 @@
 name = "GaussianProcessRegression"
+uuid = "40f2fb2d-177c-4d19-8dec-6ef5c5103da2"
 authors = ["srinix <srinix@protonmail.com> and contributors"]
 version = "0.1.0"
 

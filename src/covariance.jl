@@ -20,7 +20,8 @@ function kernel(::SquaredExp, hp, x, xp; ϵ=1e-7)
     return kern
 end
 
-@inline kernel(::WhiteNoise, hp, x) = hp * I
+@inline dim_hp(::WhiteNoise, dim) = 1
+@inline kernel(::WhiteNoise, hp, x) = hp[1]^2 * I
 @inline kernel(::WhiteNoise, hp, x, xp) = zero(eltype(x))
     
 
@@ -54,19 +55,6 @@ function kernel_impl!(::SquaredExp, kern, hp, x, xp, ix=last(axes(x)), ixp=last(
     return nothing
 end
 
-function halve_kernel(K, x, xp)
-    lx = size(x)[2]
-    lxp = size(xp)[2]
-    mx = lx >> 1
-    mxp = lxp >> 1
-    cond = lx > lxp
-    @views K1, x1, xp1 = cond ? (K[1:mx, :], x[:,1:mx], xp) : (K[:,1:mxp], x, xp[:,1:mxp])
-    @views K2, x2, xp2 = cond ? (K[(1 + mx):lx,:], x[:,(1 + mx):lx], xp) : (K[:,(1 + mxp):lxp], x, xp[:,(1 + mxp):lxp])
-
-    return K1, x1, xp1, K2, x2, xp2
-end
-
-
 function threaded_kernel_impl!(::T, kern, hp, x, xp, ix=last(axes(x)), ixp=last(axes(xp)),
                                nth=Threads.nthreads()) where {T <: AbstractKernel}
     if nth == 1
@@ -74,7 +62,6 @@ function threaded_kernel_impl!(::T, kern, hp, x, xp, ix=last(axes(x)), ixp=last(
         return nothing
     end
 
-    # K1, x1, xp1, K2, x2, xp2 = halve_kernel(kern, x, xp)
     cond = length(ix) > length(ixp) 
     maxiter = cond ? ix : ixp
     fid, lid = (first(maxiter), last(maxiter))

@@ -26,17 +26,24 @@ function kernel(K::Vector{<:AbstractKernel}, hp, x, xp)
     dim = first(size(x))
     hps = split(hpn, [dim_hp(t, dim) for t in Ks])
 
-    kern = mapreduce(t -> kernel(Ks[t], hps[t], x, xp), (x, y) -> pev(lz(x) .+ lz(y)), eachindex(Ks))
+    if length(Ks) > 1
+        kern = kernel(Ks[1], hps[1], x, xp)
+        for t in 2:length(Ks)
+            kern .+= kernel(Ks[t], hps[t], x, xp)
+        end
+        # kern = mapreduce(t -> kernel(Ks[t], hps[t], x, xp), (x, y) -> pev(lz(x) .+ lz(y)), eachindex(Ks))
+    else
+        kern = kernel(Ks[1], hpn, x, xp)
+    end
 
     return kern
 end
 
 function kernel(K::Vector{<:AbstractKernel}, hp, x)
     kern = kernel(K, hp, x, x)
-    if WhiteNoise() in K
-        return kern + hp[end]^2 * I
-    else
-        return kern
-    end
+     if WhiteNoise() in K
+        kern[diagind(kern)] .+= (hp[end]^2)
+     end
+     return kern
 end
 

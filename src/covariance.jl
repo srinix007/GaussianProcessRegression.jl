@@ -15,7 +15,7 @@ function kernel(::SquaredExp, hp, x, xp; ϵ=1e-7)
     kern = similar(x, size(x)[2], size(xp)[2])
     threaded_kernel_impl!(SquaredExp(), kern, hp, x, xp)
     if x === xp
-        kern .= kern + ϵ * I
+        kern[diagind(kern)] .+= ϵ
     end
     return kern
 end

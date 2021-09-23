@@ -20,6 +20,10 @@ function kernel(::SquaredExp, hp, x, xp; ϵ=1e-7)
     return kern
 end
 
+@inline kernel(::WhiteNoise, hp, x) = hp * I
+@inline kernel(::WhiteNoise, hp, x, xp) = zero(eltype(x))
+    
+
 function serial_kernel(::SquaredExp, hp, x, xp)
     kern = similar(x, size(x)[2], size(xp)[2])
     kernel_impl!(SquaredExp(), kern, hp, x, xp)
@@ -39,13 +43,14 @@ function distance(::T, x, xp) where {T <: AbstractDistanceMetric}
 return D
 end
 
-function kernel_impl!(::SquaredExp, kern, hp, x, xp)
+function kernel_impl!(::SquaredExp, kern, hp, x, xp, ix=last(axes(x)), ixp=last(axes(xp)))
     n = [CartesianIndex()]
     ls = @view hp[2:end]
     σ = hp[1]
-    xs, xps = (x[:,:] .* ls[:,n], xp[:,:] .* ls[:,n])
-    distance!(Euclidean(), kern, lz(xs), lz(xps))
-    kern .= σ^2 .* exp.(-1.0 .* kern)
+    xs, xps = (x[:,ix] .* ls[:,n], xp[:,ixp] .* ls[:,n])
+    kernv = view(kern, ix, ixp)
+    distance!(Euclidean(), kernv, lz(xs), lz(xps))
+    kernv .= σ^2 .* exp.(-1.0 .* kernv)
     return nothing
 end
 
@@ -62,17 +67,24 @@ function halve_kernel(K, x, xp)
 end
 
 
-function threaded_kernel_impl!(::T, kern, hp, x, xp, nth=Threads.nthreads()) where {T <: AbstractKernel}
+function threaded_kernel_impl!(::T, kern, hp, x, xp, ix=last(axes(x)), ixp=last(axes(xp)),
+                               nth=Threads.nthreads()) where {T <: AbstractKernel}
     if nth == 1
-        kernel_impl!(T(), kern, hp, x, xp)
+        kernel_impl!(T(), kern, hp, x, xp, ix, ixp)
         return nothing
     end
 
-    K1, x1, xp1, K2, x2, xp2 = halve_kernel(kern, x, xp)
+    # K1, x1, xp1, K2, x2, xp2 = halve_kernel(kern, x, xp)
+    cond = length(ix) > length(ixp) 
+    maxiter = cond ? ix : ixp
+    fid, lid = (first(maxiter), last(maxiter))
+    mid = (fid + lid) >> 1
+    ix1, ixp1 = cond ? (fid:mid, ixp) : (ix, fid:mid)
+    ix2, ixp2 = cond ? ((1 + mid):lid, ixp) : (ix, (1 + mid):lid)
     nth2 = nth >> 1
 
-    t = Threads.@spawn threaded_kernel_impl!(T(), K1, hp, x1, xp1, nth2)
-    threaded_kernel_impl!(T(), K2, hp, x2, xp2, nth - nth2)
+    t = Threads.@spawn threaded_kernel_impl!(T(), kern, hp, x, xp, ix1, ixp1, nth2)
+    threaded_kernel_impl!(T(), kern, hp, x, xp, ix2, ixp2, nth - nth2)
     wait(t)
 
     return nothing

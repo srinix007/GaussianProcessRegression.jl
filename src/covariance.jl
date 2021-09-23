@@ -7,20 +7,28 @@ struct WhiteNoise <: AbstractKernel end
 
 struct Euclidean <: AbstractDistanceMetric end
 
-function kernel(::SquaredExp, x, xp, hp)
+@inline dim_hp(::SquaredExp, dim) = dim + 1
+
+@inline kernel(::T, hp, x; ϵ=1e-7) where {T <: AbstractKernel} = kernel(T(), hp, x, x; ϵ=ϵ)
+
+function kernel(::SquaredExp, hp, x, xp; ϵ=1e-7)
     kern = similar(x, size(x)[2], size(xp)[2])
-    threaded_kernel_impl!(SquaredExp(), kern, x, xp, hp)
+    threaded_kernel_impl!(SquaredExp(), kern, hp, x, xp)
+    if x === xp
+        kern .= kern + ϵ * I
+    end
     return kern
 end
 
-function serial_kernel(::SquaredExp, x, xp, hp)
+function serial_kernel(::SquaredExp, hp, x, xp)
     kern = similar(x, size(x)[2], size(xp)[2])
-    kernel_impl!(SquaredExp(), kern, x, xp, hp)
+    kernel_impl!(SquaredExp(), kern, hp, x, xp)
     return kern
 end
 
 function distance!(::Euclidean, D, x, xp)
     n = [CartesianIndex()]
+    fill!(D, zero(eltype(D)))
     sum!(D, (x[:,:,n] .- xp[:,n,:]).^2, 1)
     return nothing
 end
@@ -31,15 +39,13 @@ function distance(::T, x, xp) where {T <: AbstractDistanceMetric}
 return D
 end
 
-function kernel_impl!(::SquaredExp, kern, x, xp, hp)
+function kernel_impl!(::SquaredExp, kern, hp, x, xp)
     n = [CartesianIndex()]
-    ls = @view hp[2:end, n]
+    ls = @view hp[2:end]
     σ = hp[1]
     xs, xps = (x[:,:] .* ls[:,n], xp[:,:] .* ls[:,n])
-
     distance!(Euclidean(), kern, lz(xs), lz(xps))
-    kern .= σ .* exp.(kern) 
-
+    kern .= σ^2 .* exp.(-1.0 .* kern)
     return nothing
 end
 
@@ -55,22 +61,24 @@ function halve_kernel(K, x, xp)
     return K1, x1, xp1, K2, x2, xp2
 end
 
-function threaded_kernel_impl!(::T, kern, x, xp, hp, nth=Threads.nthreads()) where {T <: AbstractKernel}
+
+function threaded_kernel_impl!(::T, kern, hp, x, xp, nth=Threads.nthreads()) where {T <: AbstractKernel}
     if nth == 1
-        kernel_impl!(T(), kern, x, xp, hp)
+        kernel_impl!(T(), kern, hp, x, xp)
         return nothing
     end
 
     K1, x1, xp1, K2, x2, xp2 = halve_kernel(kern, x, xp)
     nth2 = nth >> 1
 
-    t = Threads.@spawn threaded_kernel_impl!(T(), K1, x1, xp1, hp, nth2)
-    threaded_kernel_impl!(T(), K2, x2, xp2, hp, nth - nth2)
+    t = Threads.@spawn threaded_kernel_impl!(T(), K1, hp, x1, xp1, nth2)
+    threaded_kernel_impl!(T(), K2, hp, x2, xp2, nth - nth2)
     wait(t)
 
     return nothing
 end
 
-function threaded_kernel_impl!(::T, kern::A, x, xp, hp, nth=Threads.nthreads()) where {T <: AbstractKernel,A <: AbstractGPUArray}
+@inline function threaded_kernel_impl!(::T, kern::A, x, xp, hp, 
+                                nth=Threads.nthreads()) where {T <: AbstractKernel,A <: AbstractGPUArray}
     kernel_impl!(T(), kern, x, xp, hp)
 end

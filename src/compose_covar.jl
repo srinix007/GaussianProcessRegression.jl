@@ -29,7 +29,7 @@ function kernel(K::Vector{<:AbstractKernel}, hp, x, xp)
     if length(Ks) > 1
         kern = kernel(Ks[1], hps[1], x, xp)
         for t in 2:length(Ks)
-            kern .+= kernel(Ks[t], hps[t], x, xp)
+            lz(kern) .+= lz(kernel(Ks[t], hps[t], x, xp))
         end
         # kern = mapreduce(t -> kernel(Ks[t], hps[t], x, xp), (x, y) -> pev(lz(x) .+ lz(y)), eachindex(Ks))
     else

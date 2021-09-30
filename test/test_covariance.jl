@@ -1,6 +1,15 @@
 kerns = (SquaredExp(),)
 
-@testset "Covariance: $kern, $n, dim=$dim" for kern in kerns, n in (100, 200, 300), dim in 1:7 
+function grad_fd(kern, i, hp, x, ϵ=1e-7)
+    K = kernel(kern, hp, x)
+    hpϵ = copy(hp) 
+    hpϵ[i] += ϵ
+    Kϵ = kernel(kern, hpϵ, x) 
+    return (Kϵ .- K) ./ ϵ
+end
+
+
+@testset verbose = true "Covariance: $kern, $n, dim=$dim" for kern in kerns, n in (100, 200, 300), dim in 1:7 
     x = rand(dim, n)
     xp = rand(dim, 2 * n)
     hp = rand(dim_hp(kern, dim))
@@ -17,32 +26,35 @@ kerns = (SquaredExp(),)
 
     @testset "Compose" begin
         krnt = SquaredExp() + WhiteNoise()
-        hp = rand(dim_hp(krnt, dim))
-        @test kernel(krnt, hp, x) ≈ kernel(SquaredExp(), hp[1:end - 1], x) + hp[end]^2 * I
-        @test kernel(krnt, hp, x, xp) ≈ kernel(SquaredExp(), hp[1:end - 1], x, xp)
+        hps = rand(dim_hp(krnt, dim))
+        @test kernel(krnt, hps, x) ≈ kernel(SquaredExp(), hps[1:end - 1], x) + hps[end]^2 * I
+        @test kernel(krnt, hps, x, xp) ≈ kernel(SquaredExp(), hps[1:end - 1], x, xp)
 
         krnt = SquaredExp() + SquaredExp()
-        hp = rand(dim_hp(krnt, dim))
-        @test kernel(krnt, hp, x) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x) .+ kernel(SquaredExp(), hp[(dim + 2):end], x)
-        @test kernel(krnt, hp, x, xp) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hp[(dim + 2):end], x, xp)
+        hps = rand(dim_hp(krnt, dim))
+        @test kernel(krnt, hps, x) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x) .+ kernel(SquaredExp(), hps[(dim + 2):end], x)
+        @test kernel(krnt, hps, x, xp) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hps[(dim + 2):end], x, xp)
 
         krnt = SquaredExp() + SquaredExp() + WhiteNoise()
-        hp = rand(dim_hp(krnt, dim))
-        @test kernel(krnt, hp, x) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x) .+ kernel(SquaredExp(), hp[(dim + 2):end - 1], x) + hp[end]^2 * I
-        @test kernel(krnt, hp, x, xp) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hp[(dim + 2):end - 1], x, xp)
+        hps = rand(dim_hp(krnt, dim))
+        @test kernel(krnt, hps, x) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x) .+ kernel(SquaredExp(), hps[(dim + 2):end - 1], x) + hps[end]^2 * I
+        @test kernel(krnt, hps, x, xp) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hps[(dim + 2):end - 1], x, xp)
 
         krnt = WhiteNoise() + SquaredExp()
-        hp = rand(dim_hp(krnt, dim))
-        @test kernel(krnt, hp, x) ≈ kernel(SquaredExp(), hp[1:end - 1], x) + hp[end]^2 * I
-        @test kernel(krnt, hp, x, xp) ≈ kernel(SquaredExp(), hp[1:end - 1], x, xp)
+        hps = rand(dim_hp(krnt, dim))
+        @test kernel(krnt, hps, x) ≈ kernel(SquaredExp(), hps[1:end - 1], x) + hps[end]^2 * I
+        @test kernel(krnt, hps, x, xp) ≈ kernel(SquaredExp(), hps[1:end - 1], x, xp)
 
         krnt = SquaredExp() + WhiteNoise() + SquaredExp()
-        hp = rand(dim_hp(krnt, dim))
-        @test kernel(krnt, hp, x) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x) .+ kernel(SquaredExp(), hp[(dim + 2):end - 1], x) + hp[end]^2 * I
-        @test kernel(krnt, hp, x, xp) ≈ kernel(SquaredExp(), hp[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hp[(dim + 2):end - 1], x, xp)
+        hps = rand(dim_hp(krnt, dim))
+        @test kernel(krnt, hps, x) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x) .+ kernel(SquaredExp(), hps[(dim + 2):end - 1], x) + hps[end]^2 * I
+        @test kernel(krnt, hps, x, xp) ≈ kernel(SquaredExp(), hps[1:(dim + 1)], x, xp) .+ kernel(SquaredExp(), hps[(dim + 2):end - 1], x, xp)
 
     end
 
+    @testset "grad dim $i ($dim)" for i in dim
+        @test grad(kern, i, hp, x) ≈ grad(kern, i, hp, x) atol = 1e-3
+    end
 
 end
 

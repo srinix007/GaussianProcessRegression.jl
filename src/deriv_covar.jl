@@ -20,3 +20,5 @@ function grad!(::SquaredExp, DK, i, hp, x, K)
     end
     return nothing
 end
+
+grad(::WhiteNoise, i, hp, x) = 2 * hp[1] * I

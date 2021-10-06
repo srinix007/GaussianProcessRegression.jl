@@ -70,24 +70,24 @@ end
         @test grad(kern, i, hp, x) ≈ grad(kern, i, hp, x) atol = 1e-3
         @inferred grad(kern, i, hp, x)
     end
-end
 
-@testset "grad compose" begin
-    dim = 2
-    x = rand(dim, 100)
-    krnt = SquaredExp() + WhiteNoise() + SquaredExp()
-    hp = rand(dim_hp(krnt, dim))
-    hps = split(hp, [dim + 1, 1, dim + 1])
+    @testset "grad compose" begin
+        dim = 2
+        x = rand(dim, 100)
+        krnt = SquaredExp() + WhiteNoise() + SquaredExp()
+        hp = rand(dim_hp(krnt, dim))
+        hps = split(hp, [dim + 1, 1, dim + 1])
 
-    @inferred UniformScaling grad(krnt, 1, hp, x)
+        @inferred UniformScaling grad(krnt, 1, hp, x)
 
-    @test grad(krnt, 1, hp, x) ≈ grad(SquaredExp(), 1, hps[1], x) 
-    @test grad(krnt, 2, hp, x) ≈ grad(SquaredExp(), 2, hps[1], x) 
-    @test grad(krnt, 3, hp, x) ≈ grad(SquaredExp(), 3, hps[1], x) 
+        @test grad(krnt, 1, hp, x) ≈ grad(SquaredExp(), 1, hps[1], x) 
+        @test grad(krnt, 2, hp, x) ≈ grad(SquaredExp(), 2, hps[1], x) 
+        @test grad(krnt, 3, hp, x) ≈ grad(SquaredExp(), 3, hps[1], x) 
 
-    @test grad(krnt, 4, hp, x) ≈ grad(WhiteNoise(), 1, hps[2], x) 
+        @test grad(krnt, 4, hp, x) ≈ grad(WhiteNoise(), 1, hps[2], x) 
 
-    @test grad(krnt, 5, hp, x) ≈ grad(SquaredExp(), 1, hps[3], x) 
-    @test grad(krnt, 6, hp, x) ≈ grad(SquaredExp(), 2, hps[3], x) 
-    @test grad(krnt, 7, hp, x) ≈ grad(SquaredExp(), 3, hps[3], x) 
+        @test grad(krnt, 5, hp, x) ≈ grad(SquaredExp(), 1, hps[3], x) 
+        @test grad(krnt, 6, hp, x) ≈ grad(SquaredExp(), 2, hps[3], x) 
+        @test grad(krnt, 7, hp, x) ≈ grad(SquaredExp(), 3, hps[3], x) 
+        end
 end

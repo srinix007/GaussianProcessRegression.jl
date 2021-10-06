@@ -29,32 +29,42 @@ function rm_noise(K::ComposedKernel, hps::Vector{<:Vector})
 end
 
 function kernel(K::ComposedKernel, hp, x, xp)
+    kern = similar(x, size(x,2), size(xp,2))
+    kernel!(kern, K, hp, x, xp)
+    return kern
+end
+
+function kernel(K::ComposedKernel, hp, x)
+    kern = similar(x, size(x,2), size(x,2))
+    kernel!(kern, K, hp, x)
+    return kern
+end
+
+function kernel!(kern, K::ComposedKernel, hp, x, xp)
     dim = first(size(x))
     hps = split(hp, [dim_hp(t, dim) for t in K.kernels])
     Ks, hpn = rm_noise(K, hps)
 
     if length(Ks) > 1
-        kern = kernel(Ks[1], hpn[1], x, xp)
+        kernel!(kern, Ks[1], hpn[1], x, xp)
         for t in 2:length(Ks)
             lz(kern) .+= lz(kernel(Ks[t], hpn[t], x, xp))
         end
-        # kern = mapreduce(t -> kernel(Ks[t], hps[t], x, xp), (x, y) -> pev(lz(x) .+ lz(y)), eachindex(Ks))
     else
-        kern = kernel(Ks[1], hpn[1], x, xp)
+        kernel!(kern, Ks[1], hpn[1], x, xp)
     end
-
-    return kern
+    return nothing
 end
 
-function kernel(K::ComposedKernel, hp, x)
-    kern = kernel(K, hp, x, x)
+function kernel!(kern, K::ComposedKernel, hp, x)
+    kernel!(kern, K, hp, x, x)
     if WhiteNoise() in K.kernels
         nidx = findfirst(x -> x === WhiteNoise(), K.kernels)
         dims = [dim_hp(krn, size(x, 1)) for krn in K.kernels]
         hps = split(hp, dims)
         kern[diagind(kern)] .+= (hps[nidx][1]^2)
     end
-    return kern
+    return nothing
 end
 
 function find_idx(dims, i)

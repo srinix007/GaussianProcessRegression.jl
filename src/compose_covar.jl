@@ -1,9 +1,17 @@
-function Base.:+(::T, ::S) where {T <: AbstractKernel,S <: AbstractKernel}
-    return [T(), S()]
+struct ComposedKernel{A<:Vector{<:AbstractKernel}} <: AbstractKernel
+    kernels::A
 end
 
-function Base.:+(K::Vector{<:AbstractKernel}, ::S) where {S <: AbstractKernel}
-    return vcat(K, S())
+function Base.:+(::T, ::S) where {T <: AbstractKernel,S <: AbstractKernel}
+    return ComposedKernel([T(), S()])
+end
+
+function Base.:+(K::ComposedKernel, ::S) where {S <: AbstractKernel}
+    return ComposedKernel(vcat(K.kernels, S()))
+end
+
+function Base.:+(K::ComposedKernel, M::ComposedKernel)
+    return Composedkernel(vcat(K.kernels, M.kernels))
 end
 
 function Base.split(A::AbstractVector, inds)
@@ -11,8 +19,8 @@ function Base.split(A::AbstractVector, inds)
     return [A[i] for i in (:).(cind[1:end - 1] .+ 1, cind[2:end])]
 end
 
-function dim_hp(K::Vector{<:AbstractKernel}, dim)
-    return sum(dim_hp(k, dim) for k in K)
+function dim_hp(K::ComposedKernel, dim)
+    return sum(dim_hp(k, dim) for k in K.kernels)
 end
 
 function rm_noise(K::Vector{<:AbstractKernel}, hps::Vector{<:Vector}) 
@@ -20,10 +28,10 @@ function rm_noise(K::Vector{<:AbstractKernel}, hps::Vector{<:Vector})
     return deleteat!(copy(K), ninds), deleteat!(copy(hps), ninds)
 end
 
-function kernel(K::Vector{<:AbstractKernel}, hp, x, xp)
+function kernel(K::ComposedKernel, hp, x, xp)
     dim = first(size(x))
-    hps = split(hp, [dim_hp(t, dim) for t in K])
-    Ks, hpn = rm_noise(K, hps)
+    hps = split(hp, [dim_hp(t, dim) for t in K.kernels])
+    Ks, hpn = rm_noise(K.kernels, hps)
 
     if length(Ks) > 1
         kern = kernel(Ks[1], hpn[1], x, xp)
@@ -38,11 +46,11 @@ function kernel(K::Vector{<:AbstractKernel}, hp, x, xp)
     return kern
 end
 
-function kernel(K::Vector{<:AbstractKernel}, hp, x)
+function kernel(K::ComposedKernel, hp, x)
     kern = kernel(K, hp, x, x)
-    if WhiteNoise() in K
-        nidx = findfirst(x -> x === WhiteNoise(), K)
-        dims = [dim_hp(krn, size(x, 1)) for krn in K]
+    if WhiteNoise() in K.kernels
+        nidx = findfirst(x -> x === WhiteNoise(), K.kernels)
+        dims = [dim_hp(krn, size(x, 1)) for krn in K.kernels]
         hps = split(hp, dims)
         kern[diagind(kern)] .+= (hps[nidx][1]^2)
     end
@@ -56,10 +64,10 @@ function find_idx(dims, i)
     return (kidx, hpidx)
 end
 
-function grad(K::Vector{<:AbstractKernel}, i, hp, x)
+function grad(K::ComposedKernel, i, hp, x)
     dim = size(x, 1)
-    dims = [dim_hp(krn, size(x, 1)) for krn in K]
+    dims = [dim_hp(krn, dim) for krn in K.kernels]
     hps = split(hp, dims)
     kidx, hpidx = find_idx(dims, i)
-    return grad(K[kidx], hpidx, hps[kidx], x)
+    return grad(K.kernels[kidx], hpidx, hps[kidx], x)
 end

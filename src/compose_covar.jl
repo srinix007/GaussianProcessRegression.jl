@@ -2,11 +2,11 @@ struct ComposedKernel{A<:Tuple{Vararg{<:AbstractKernel}}} <: AbstractKernel
     kernels::A
 end
 
-function Base.:+(::T, ::S) where {T <: AbstractKernel,S <: AbstractKernel}
+function Base.:+(::T, ::S) where {T<:AbstractKernel,S<:AbstractKernel}
     return ComposedKernel((T(), S()))
 end
 
-function Base.:+(K::ComposedKernel, ::S) where {S <: AbstractKernel}
+function Base.:+(K::ComposedKernel, ::S) where {S<:AbstractKernel}
     return ComposedKernel(Tuple(vcat(K.kernels..., S())))
 end
 
@@ -16,26 +16,26 @@ end
 
 function Base.split(A::AbstractVector, inds)
     cind = vcat(0, cumsum(inds))
-    return [A[i] for i in (:).(cind[1:end - 1] .+ 1, cind[2:end])]
+    return [A[i] for i in (:).(cind[1:(end - 1)] .+ 1, cind[2:end])]
 end
 
 function dim_hp(K::ComposedKernel, dim)
     return sum(dim_hp(k, dim) for k in K.kernels)
 end
 
-function rm_noise(K::ComposedKernel, hps::Vector{<:Vector}) 
+function rm_noise(K::ComposedKernel, hps::Vector{<:Vector})
     ninds = findall(x -> x === WhiteNoise(), K.kernels)
-    return filter(x->x !== WhiteNoise(), K.kernels), deleteat!(copy(hps), ninds)
+    return filter(x -> x !== WhiteNoise(), K.kernels), deleteat!(copy(hps), ninds)
 end
 
 function kernel(K::ComposedKernel, hp, x, xp)
-    kern = similar(x, size(x,2), size(xp,2))
+    kern = similar(x, size(x, 2), size(xp, 2))
     kernel!(kern, K, hp, x, xp)
     return kern
 end
 
 function kernel(K::ComposedKernel, hp, x)
-    kern = similar(x, size(x,2), size(x,2))
+    kern = similar(x, size(x, 2), size(x, 2))
     kernel!(kern, K, hp, x)
     return kern
 end
@@ -71,7 +71,7 @@ function find_idx(dims, i)
     cdims = cumsum(dims)
     kidx = findfirst(x -> x >= i, cdims)
     kidx = kidx === nothing ? 0 : kidx
-    hpidx = (kidx == 1 ) ? i : i - cdims[kidx - 1]
+    hpidx = (kidx == 1) ? i : i - cdims[kidx - 1]
     return (kidx, hpidx)
 end
 

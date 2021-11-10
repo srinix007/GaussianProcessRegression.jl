@@ -10,7 +10,7 @@ export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise
        grad, AbstractModel, AbstractModelCache, AbstractGPRModel, GPRModel, GPRModelCache,
        predict, predict!, update!, AbstractProcess, AbstractDistribution,
        NormalDistribution, GaussianProcess, update_params!, update_cache!, loss,
-       MarginalLikelihood, alloc_kernels, kernels, kernels!
+       MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, TrainGPRCache
 
 lz = LazyTensor
 

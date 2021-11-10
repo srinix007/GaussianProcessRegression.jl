@@ -26,14 +26,15 @@ function loss(ll::AbstractLoss, cov::AbstractKernel, hp, x, y)
 end
 
 function grad(ll::AbstractLoss, cov::AbstractKernel, i, hp, x, y)
+    Ks = kernels(cov, hp, x)
+    ∇K = grad(cov, i, hp, x, Ks)
     K = kernel(cov, hp, x)
-    ∇K = grad(cov, i, hp, x, K)
     kchol = cholesky(K)
     K⁻¹y = kchol \ y
     return grad(ll, kchol, ∇K, K⁻¹y)
 end
 
-function loss(::MarginalLikelihood, K::AbstractArray, y)
+function loss(::MarginalLikelihood, K::AbstractArray, y::AbstractArray)
     kchol = cholesky(K)
     return loss(MarginalLikelihood(), kchol, y)
 end
@@ -55,48 +56,25 @@ function grad(::MarginalLikelihood, kchol::Cholesky, ∇K, α)
     return -0.5 * gr
 end
 
+function grad(::MarginalLikelihood, kchol::Cholesky, ∇K::UniformScaling, α)
+    K⁻¹ = inv(kchol)
+    gr = tsum(α .^ 2 .- diag(K⁻¹))
+    return -0.5 * gr
+end
+
 function grad1(::MarginalLikelihood, kchol::Cholesky, ∇K, α)
     A = tr(((α * α') - inv(kchol)) * ∇K)
     return -0.5 * A
 end
 
-function grad(::MarginalLikelihood, hp, mod::AbstractGPRModel, mc::AbstractModelCache)
-    ∇L = similar(mod.params)
-    kernel!(mc.kxx, mod.covar, hp, mod.x)
-    mc.kxx_chol .= mc.kxx
-    kchol = cholesky!(mc.kxx_chol)
-    ∇K = similar(K)
-    mc.wt .= kchol \ mod.y
-    @inbounds for i in ∇L
-        grad!(mod.covar, ∇K, i, hp, x, mc.kxx)
-        ∇L[i] = grad(MarginalLikelihood(), kchol, ∇K, mc.wt)
-    end
-    return ∇L
+function loss(::MarginalLikelihood, hp, mod::AbstractGPRModel)
+    tc = TrainGPRCache(mod)
+    update_cache!(tc, hp)
+    return loss(MarginalLikelihood(), hp, tc)
 end
 
-function loss(::MarginalLikelihood, hp, mod::AbstractGPRModel, mc::AbstractModelCache)
-    kernel!(mc.kxx, mod.covar, hp, mod.x)
-    mc.kxx_chol .= mc.kxx
-    kchol = cholesky!(mc.kxx_chol)
-    mc.wt .= kchol \ mod.y
-    return loss(MarginalLikelihood(), kchol, mod.y, mc.wt)
-end
-
-function loss(::MarginalLikelihood, mod::AbstractGPRModel)
-    kchol = mod.cache.kxx_chol
-    α = mod.cache.wt
-    return loss(MarginalLikelihood(), kchol, mod.y, α)
-end
-
-function grad(::MarginalLikelihood, mod::AbstractGPRModel)
-    ∇L = similar(mod.params)
-    kchol = mod.cache.kxx_chol
-    K = kchol.L * kchol.U
-    α = mod.cache.wt
-    ∇K = similar(K)
-    @inbounds for i in ∇L
-        grad!(mod.covar, ∇K, i, hp, x, K)
-        ∇L[i] = grad(MarginalLikelihood(), kchol, ∇K, α)
-    end
-    return ∇L
+function grad(::MarginalLikelihood, hp, mod::AbstractGPRModel)
+    tc = TrainGPRCache(mod)
+    update_cache!(tc, hp)
+    return grad(MarginalLikelihood(), hp, tc)
 end

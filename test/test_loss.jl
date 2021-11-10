@@ -27,4 +27,13 @@ end
     kchol = cholesky(K)
 
     @test grad(ll, kchol, K, y) ≈ -0.5 * (tr((y * y') * K) - size(K, 1)) rtol = 1e-5
+
+    md = GPRModel(SquaredExp() + WhiteNoise(), x, y)
+    @test loss(ll, md.covar, md.params, x, y) ≈ loss(ll, md.params, md)
+
+    DL = grad(ll, md.params, md)
+
+    for i in eachindex(md.params)
+        @test grad(ll, md.covar, i, md.params, x, y) ≈ DL[i]
+    end
 end

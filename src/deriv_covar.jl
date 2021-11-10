@@ -1,7 +1,7 @@
 
 function grad(cov::T, i, hp, x) where {T<:AbstractKernel}
     K = kernel(cov, hp, x)
-    return grad(cov, i, hp, x, K)
+    return grad(cov, i, hp, x, [K])
 end
 
 function grad(cov::ComposedKernel, i, hp, x)
@@ -9,7 +9,7 @@ function grad(cov::ComposedKernel, i, hp, x)
     return grad(cov, i, hp, x, K)
 end
 
-function grad(cov::T, i, hp, x, K) where {T<:AbstractKernel}
+function grad(cov::T, i, hp, x, K::Vector{<:Matrix}) where {T<:AbstractKernel}
     n = size(x, 2)
     DK = similar(x, n, n)
     ret = grad!(cov, DK, i, hp, x, K)
@@ -17,8 +17,8 @@ function grad(cov::T, i, hp, x, K) where {T<:AbstractKernel}
     return ∇K
 end
 
-function grad!(::SquaredExp, DK, i, hp, x, K)
-    xl, Kl, DKl = lz.((x, K, DK))
+function grad!(::SquaredExp, DK, i, hp, x, K::Vector{<:Matrix})
+    xl, Kl, DKl = lz.((x, K[1], DK))
     if i == 1
         @inbounds DKl .= (2 / abs(hp[1])) .* Kl
     else

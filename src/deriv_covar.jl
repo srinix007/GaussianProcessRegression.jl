@@ -1,13 +1,20 @@
 
-function grad(::T, i, hp, x) where {T<:AbstractKernel}
-    K = kernel(T(), hp, x)
-    return grad(T(), i, hp, x, K)
+function grad(cov::T, i, hp, x) where {T<:AbstractKernel}
+    K = kernel(cov, hp, x)
+    return grad(cov, i, hp, x, K)
 end
 
-function grad(::T, i, hp, x, K) where {T<:AbstractKernel}
-    DK = similar(K)
-    grad!(T(), DK, i, hp, x, K)
-    return DK
+function grad(cov::ComposedKernel, i, hp, x)
+    K = kernels(cov, hp, x)
+    return grad(cov, i, hp, x, K)
+end
+
+function grad(cov::T, i, hp, x, K) where {T<:AbstractKernel}
+    n = size(x, 2)
+    DK = similar(x, n, n)
+    ret = grad!(cov, DK, i, hp, x, K)
+    ∇K = ret === nothing ? DK : ret
+    return ∇K
 end
 
 function grad!(::SquaredExp, DK, i, hp, x, K)

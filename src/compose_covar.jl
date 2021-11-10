@@ -67,6 +67,28 @@ function kernel!(kern, K::ComposedKernel, hp, x)
     return nothing
 end
 
+## kernels if list of kernels is needed
+function kernels(K::ComposedKernel, hp, x)
+    kerns = alloc_kernels(K, x)
+    kernels!(kerns, K, hp, x)
+    return kerns
+end
+
+function alloc_kernels(K::ComposedKernel, x)
+    n = size(x, 2)
+    zm = zeros(eltype(x), 1, 1)
+    kerns = [map(krn -> krn === WhiteNoise() ? zm : similar(x, n, n), K.kernels)...]
+    return kerns
+end
+
+function kernels!(kerns::Vector{<:Matrix}, K::ComposedKernel, hp, x)
+    dim = first(size(x))
+    hps = split(hp, [dim_hp(t, dim) for t in K.kernels])
+    map(i -> kernel!(kerns[i], K.kernels[i], hps[i], x),
+        findall(x -> x !== WhiteNoise(), K.kernels))
+    return nothing
+end
+
 function find_idx(dims, i)
     cdims = cumsum(dims)
     kidx = findfirst(x -> x >= i, cdims)
@@ -75,10 +97,15 @@ function find_idx(dims, i)
     return (kidx, hpidx)
 end
 
-function grad(K::ComposedKernel, i, hp, x)
+function grad!(K::ComposedKernel, DK, i, hp, x, kerns::Vector{<:Matrix})
     dim = size(x, 1)
     dims = [dim_hp(krn, dim) for krn in K.kernels]
     hps = split(hp, dims)
     kidx, hpidx = find_idx(dims, i)
-    return grad(K.kernels[kidx], hpidx, hps[kidx], x)
+    if K.kernels[kidx] !== WhiteNoise()
+        grad!(K.kernels[kidx], DK, hpidx, hps[kidx], x, kerns[kidx])
+    else
+        return grad(K.kernels[kidx], hpidx, hps[kidx], x)
+    end
+    return nothing
 end

@@ -59,7 +59,7 @@ end
 function grad(::MarginalLikelihood, kchol::Cholesky, ∇K::UniformScaling, α)
     K⁻¹ = inv(kchol)
     gr = tsum(α .^ 2 .- diag(K⁻¹))
-    return -0.5 * gr
+    return -0.5 * ∇K.λ * gr
 end
 
 function grad1(::MarginalLikelihood, kchol::Cholesky, ∇K, α)

@@ -23,7 +23,7 @@ function grad!(::SquaredExp, DK, i, hp, x, K::Vector{<:Matrix})
         @inbounds DKl .= (2 / abs(hp[1])) .* Kl
     else
         n = [CartesianIndex()]
-        @inbounds DKl .= -2.0 .* hp[i] .* (xl[i - 1, :, n] .- xl[i - 1, n, :]) .* Kl
+        @inbounds DKl .= -2.0 .* hp[i] .* Kl .* (xl[i - 1, :, n] .- xl[i - 1, n, :]) .^ 2
     end
     return nothing
 end

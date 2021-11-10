@@ -82,7 +82,7 @@ end
     end
 
     @testset "grad dim $i ($dim)" for i in dim
-        @test grad(kern, i, hp, x) ≈ grad(kern, i, hp, x) atol = 1e-3
+        @test grad(kern, i, hp, x) ≈ grad_fd(kern, i, hp, x) atol = 1e-3
         @inferred grad(kern, i, hp, x)
     end
 

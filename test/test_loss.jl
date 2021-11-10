@@ -35,5 +35,7 @@ end
 
     for i in eachindex(md.params)
         @test grad(ll, md.covar, i, md.params, x, y) ≈ DL[i]
+        @test grad(ll, md.covar, i, md.params, x, y) ≈
+              grad_fd(ll, md.covar, i, md.params, x, y) rtol = 1e-3
     end
 end

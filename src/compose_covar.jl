@@ -93,8 +93,7 @@ end
 function kernels!(kerns::Vector{<:Matrix}, K::ComposedKernel, hp, x)
     dim = first(size(x))
     hps = split(hp, [dim_hp(t, dim) for t in K.kernels])
-    map(i -> kernel!(kerns[i], K.kernels[i], hps[i], x),
-        findall(x -> x !== WhiteNoise(), K.kernels))
+    map(i -> kernel!(kerns[i], K.kernels[i], hps[i], x), eachindex(K.kernels))
     return nothing
 end
 
@@ -111,10 +110,5 @@ function grad!(K::ComposedKernel, DK, i, hp, x, kerns::Vector{<:Matrix})
     dims = [dim_hp(krn, dim) for krn in K.kernels]
     hps = split(hp, dims)
     kidx, hpidx = find_idx(dims, i)
-    if K.kernels[kidx] !== WhiteNoise()
-        grad!(K.kernels[kidx], DK, hpidx, hps[kidx], x, [kerns[kidx]])
-    else
-        return grad(K.kernels[kidx], hpidx, hps[kidx], x)
-    end
-    return nothing
+    return grad!(K.kernels[kidx], DK, hpidx, hps[kidx], x, [kerns[kidx]])
 end

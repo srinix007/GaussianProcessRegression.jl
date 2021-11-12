@@ -35,6 +35,8 @@ end
 @inline dim_hp(::WhiteNoise, dim) = 1
 @inline kernel(::WhiteNoise, hp, x) = hp[1]^2 * I
 @inline kernel(::WhiteNoise, hp, x, xp) = zero(eltype(x))
+@inline kernel!(kern, ::WhiteNoise, hp, x) = nothing
+@inline kernel!(kern, ::WhiteNoise, hp, x, xp) = nothing
 
 function serial_kernel(::SquaredExp, hp, x, xp)
     kern = similar(x, size(x)[2], size(xp)[2])

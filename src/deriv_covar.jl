@@ -29,3 +29,4 @@ function grad!(::SquaredExp, DK, i, hp, x, K::Vector{<:Matrix})
 end
 
 grad(::WhiteNoise, i, hp, x) = 2 * hp[1] * I
+grad!(::WhiteNoise, DK, i, hp, x, K) = grad(WhiteNoise(), i, hp, x)

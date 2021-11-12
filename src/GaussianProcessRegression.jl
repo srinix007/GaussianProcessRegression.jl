@@ -10,9 +10,10 @@ export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise
        grad, AbstractModel, AbstractModelCache, AbstractGPRModel, GPRModel, GPRModelCache,
        predict, predict!, update!, AbstractProcess, AbstractDistribution,
        NormalDistribution, GaussianProcess, update_params!, update_cache!, loss,
-       MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, TrainGPRCache
+       MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, model_cache,
+       TrainGPRCache
 
-lz = LazyTensor
+const lz = LazyTensor
 
 include("covariance.jl")
 include("compose_covar.jl")

@@ -8,7 +8,7 @@
     @test loss(MarginalLikelihood(), collect(K), y) ≈ MLE
 end
 
-function grad_fd(ll, cov, i, hp, x, y, ϵ=1e-5)
+function grad_fd(ll, cov, i, hp, x, y, ϵ = 1e-6)
     L = loss(ll, cov, hp, x, y)
     hpϵ = copy(hp)
     hpϵ[i] += ϵ
@@ -18,7 +18,7 @@ end
 
 @testset verbose = true "Grad MarginalLikelihood" for n in (10, 20, 100), dim in (2, 5)
     x = rand(dim, n)
-    y = dropdims(sum(sin.(x); dims=1); dims=1)
+    y = dropdims(sum(sin.(x); dims = 1); dims = 1)
     hp = rand(dim_hp(SquaredExp(), dim))
 
     ll = MarginalLikelihood()

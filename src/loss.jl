@@ -58,7 +58,7 @@ end
 
 function grad(::MarginalLikelihood, kchol::Cholesky, ∇K::UniformScaling, α)
     K⁻¹ = inv(kchol)
-    gr = tsum(α .^ 2 .- diag(K⁻¹))
+    gr = sum(α .^ 2 .- diag(K⁻¹))
     return -0.5 * ∇K.λ * gr
 end
 
@@ -67,14 +67,26 @@ function grad1(::MarginalLikelihood, kchol::Cholesky, ∇K, α)
     return -0.5 * A
 end
 
-function loss(::MarginalLikelihood, hp, mod::AbstractGPRModel)
-    tc = TrainGPRCache(mod)
+model_cache(::AbstractGPRModel) = TrainGPRCache
+
+@inline loss(ll::AbstractLoss, mod::AbstractGPRModel) = loss(ll, mod.params, mod)
+@inline loss(ll::AbstractLoss, hp::AbstractArray, mod::AbstractGPRModel) = loss(ll,
+                                                                                model_cache(mod),
+                                                                                hp, mod)
+
+function loss(ll::AbstractLoss, T::Type{<:AbstractModelCache}, hp, mod::AbstractGPRModel)
+    tc = T(mod)
     update_cache!(tc, hp)
-    return loss(MarginalLikelihood(), hp, tc)
+    return loss(ll, tc)
 end
 
-function grad(::MarginalLikelihood, hp, mod::AbstractGPRModel)
-    tc = TrainGPRCache(mod)
+@inline grad(ll::AbstractLoss, mod::AbstractGPRModel) = grad(ll, mod.params, mod)
+@inline grad(ll::AbstractLoss, hp::AbstractArray, mod::AbstractGPRModel) = grad(ll,
+                                                                                model_cache(mod),
+                                                                                hp, mod)
+
+function grad(ll::AbstractLoss, T::Type{<:AbstractModelCache}, hp, mod::AbstractGPRModel)
+    tc = T(mod)
     update_cache!(tc, hp)
-    return grad(MarginalLikelihood(), hp, tc)
+    return grad(ll, tc)
 end

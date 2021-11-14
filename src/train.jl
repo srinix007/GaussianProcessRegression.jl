@@ -30,7 +30,8 @@ function TrainGPRCache(cov::AbstractKernel, hp, x, y)
     return TrainGPRCache(cov, hp, x, y, α, kerns, kchol_base, ∇K)
 end
 
-@inline TrainGPRCache(md::AbstractGPRModel) = TrainGPRCache(md.covar, md.params, md.x, md.y)
+@inline TrainGPRCache(md::AbstractGPRModel) = TrainGPRCache(md.covar, copy(md.params), md.x,
+                                                            md.y)
 
 function Base.show(io::IO, ::MIME"text/plain", tc::TrainGPRCache)
     println(typeof(tc))
@@ -43,7 +44,7 @@ function update_cache!(tc::TrainGPRCache, hp)
     if tc.cov isa ComposedKernel
         kernels!(tc.kerns, tc.cov, hp, tc.x)
         tc.kchol_base .= tc.kerns[1]
-        for t in 2:length(tc.kerns)
+        for t = 2:length(tc.kerns)
             lz(tc.kchol_base) .+= lz(tc.kerns[t])
         end
         add_noise!(tc.kchol_base, tc.cov, hp, tc.x)
@@ -72,6 +73,18 @@ function grad(::MarginalLikelihood, mc::AbstractModelCache)
     return ∇L
 end
 
-function train(md::AbstractModel; hp0=md.params, method=NelderMead())
-    return G = similar(hp0)
+function train(md::AbstractModel, cost::AbstractLoss, hp0 = copy(md.params);
+               cache = TrainGPRCache, method = NelderMead(), options = Optim.Options())
+    tc = cache(md)
+    function fg!(F, G, hp)
+        update_cache!(tc, hp)
+        if G !== nothing
+            G .= grad(cost, tc)
+        end
+        if F !== nothing
+            return loss(cost, tc)
+        end
+    end
+
+    return optimize(Optim.only_fg!(fg!), hp0, method, options)
 end

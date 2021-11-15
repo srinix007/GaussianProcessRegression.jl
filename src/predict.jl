@@ -37,5 +37,5 @@ function posterior(md::GPRModel{C,T,P,X}, xp::X) where {C,T,P,X}
     μₚ = similar(xp, size(xp, 2))
     Σₚ = similar(xp, size(xp, 2), size(xp, 2))
     predict!(μₚ, Σₚ, md, xp)
-    return NormalDistribution(μₚ, Σₚ)
+    return μₚ, Σₚ
 end

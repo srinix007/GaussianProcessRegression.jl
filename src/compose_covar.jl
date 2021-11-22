@@ -16,7 +16,7 @@ end
 
 function Base.split(A::AbstractVector, inds)
     cind = vcat(0, cumsum(inds))
-    return [A[i] for i in (:).(cind[1:(end - 1)] .+ 1, cind[2:end])]
+    return [A[i] for i in (:).(cind[1:(end-1)] .+ 1, cind[2:end])]
 end
 
 function dim_hp(K::ComposedKernel, dim)
@@ -47,7 +47,7 @@ function kernel!(kern, K::ComposedKernel, hp, x, xp)
 
     if length(Ks) > 1
         kernel!(kern, Ks[1], hpn[1], x, xp)
-        for t in 2:length(Ks)
+        for t = 2:length(Ks)
             lz(kern) .+= lz(kernel(Ks[t], hpn[t], x, xp))
         end
     else
@@ -101,7 +101,7 @@ function find_idx(dims, i)
     cdims = cumsum(dims)
     kidx = findfirst(x -> x >= i, cdims)
     kidx = kidx === nothing ? 0 : kidx
-    hpidx = (kidx == 1) ? i : i - cdims[kidx - 1]
+    hpidx = (kidx == 1) ? i : i - cdims[kidx-1]
     return (kidx, hpidx)
 end
 

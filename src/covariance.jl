@@ -42,9 +42,9 @@ end
 @inline kernel!(kern, ::WhiteNoise, hp, x) = nothing
 @inline kernel!(kern, ::WhiteNoise, hp, x, xp) = nothing
 
-function serial_kernel(::SquaredExp, hp, x, xp)
+function serial_kernel(::SquaredExp, hp, x, xp; dist = Euclidean())
     kern = similar(x, size(x)[2], size(xp)[2])
-    kernel_impl!(SquaredExp(), kern, hp, x, xp)
+    kernel_impl!(SquaredExp(), kern, hp, x, xp, dist)
     return kern
 end
 

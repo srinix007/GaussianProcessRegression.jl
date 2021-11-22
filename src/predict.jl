@@ -26,6 +26,11 @@ end
 
 function predict!(μₚ, Σₚ, md::GPRModel{C,T,P,X}, xp::X) where {C,T,P,X}
     Kxp = kernel(md.covar, md.params, xp, md.x)
+    predict!(μₚ, Σₚ, Kxp)
+    return nothing
+end
+
+function predict!(μₚ, Σₚ, Kxp)
     mul!(μₚ, Kxp, md.cache.wt)
     kernel!(Σₚ, md.covar, md.params, xp)
     rdiv!(Kxp, md.cache.kxx_chol.U)

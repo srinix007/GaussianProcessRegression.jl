@@ -43,6 +43,37 @@ end
 
 Base.show(io::IO, ::MIME"text/plain", Kxp::SplitKernel) = show(typeof(Kxp))
 
+function SplitKernel(x, cm::Cmap)
+    s = size(x, 2)
+    e = size(cm, 2)
+    q = size(cm, 3)
+    A = similar(x, e, q)
+    B = similar(x, e, s)
+    C = similar(x, s, q)
+    return SplitKernel(cm, x, A, B, C)
+end
+
+struct SplitDistanceA <: AbstractDistanceMetric end
+struct SplitDistanceC <: AbstractDistanceMetric end
+
+function distance!(::SplitDistanceA, D, xe, xq)
+    n = [CartesianIndex()]
+    fill!(D, zero(eltype(D)))
+    sum!(D, (xq[:, n, :] .^ 2 .+ 2.0 .* xe[:, :, n] .* xq[:, n, :]), 1)
+    return nothing
+end
+
+function distance!(::SplitDistanceC, D, xs, xq)
+    n = [CartesianIndex()]
+    fill!(D, zero(eltype(D)))
+    sum!(D, (-2.0 .* xs[:, :, n] .* xq[:, n, :]), 1)
+    return nothing
+end
+
+function kernel!(::SquaredExp, Kxp, hp, x, c::Cmap)
+
+end
+
 function predict_split_mean!(μₚ, A, B, C, wt)
     μₚ .= A
     Cw = Diagonal(wt) * C
@@ -61,6 +92,5 @@ function predict_split_covar!(Σₚ, md::AbstractGPRModel, Kxp::SplitKernel)
         tt = dot(kxp, Kkxp)
         Σₚ[e, q] = kernel(md.cov, md.params, Kxp.xp[e, q]) - tt
     end
-
     return nothing
 end

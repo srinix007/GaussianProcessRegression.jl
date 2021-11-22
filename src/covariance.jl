@@ -9,23 +9,27 @@ struct Euclidean <: AbstractDistanceMetric end
 
 @inline dim_hp(::SquaredExp, dim) = dim + 1
 
-@inline kernel(::T, hp, x; ϵ=1e-7) where {T<:AbstractKernel} = kernel(T(), hp, x, x; ϵ=ϵ)
-
-@inline function kernel!(kern, ::T, hp, x; ϵ=1e-7) where {T<:AbstractKernel}
-    return kernel!(kern, T(), hp, x, x; ϵ=ϵ)
+@inline function kernel(::T, hp, x; dist = Euclidean(), ϵ = 1e-7) where {T<:AbstractKernel}
+    kernel(T(), hp, x, x; dist = dist, ϵ = ϵ)
 end
 
-function kernel(::K, hp, x, xp; ϵ=1e-7) where {K<:AbstractKernel}
+@inline function kernel!(kern, ::T, hp, x; dist = Euclidean(),
+                         ϵ = 1e-7) where {T<:AbstractKernel}
+    return kernel!(kern, T(), hp, x, x; dist = dist, ϵ = ϵ)
+end
+
+function kernel(::K, hp, x, xp; dist = Euclidean(), ϵ = 1e-7) where {K<:AbstractKernel}
     kern = similar(x, size(x)[2], size(xp)[2])
-    threaded_kernel_impl!(K(), kern, hp, x, xp)
+    threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
         kern[diagind(kern)] .+= ϵ
     end
     return kern
 end
 
-function kernel!(kern, ::K, hp, x, xp; ϵ=1e-7) where {K<:AbstractKernel}
-    threaded_kernel_impl!(K(), kern, hp, x, xp)
+function kernel!(kern, ::K, hp, x, xp; dist = Euclidean(),
+                 ϵ = 1e-7) where {K<:AbstractKernel}
+    threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
         kern[diagind(kern)] .+= ϵ
     end
@@ -57,21 +61,23 @@ function distance(::T, x, xp) where {T<:AbstractDistanceMetric}
     return D
 end
 
-function kernel_impl!(::SquaredExp, kern, hp, x, xp, ix=last(axes(x)), ixp=last(axes(xp)))
+function kernel_impl!(::SquaredExp, kern, hp, x, xp, dist = Euclidean(), ix = last(axes(x)),
+                      ixp = last(axes(xp)))
     n = [CartesianIndex()]
     ls = @view hp[2:end]
     σ = hp[1]
     xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
     kernv = view(kern, ix, ixp)
-    distance!(Euclidean(), kernv, lz(xs), lz(xps))
+    distance!(dist, kernv, lz(xs), lz(xps))
     kernv .= σ^2 .* exp.(-1.0 .* kernv)
     return nothing
 end
 
-function threaded_kernel_impl!(::T, kern, hp, x, xp, ix=last(axes(x)), ixp=last(axes(xp)),
-                               nth=Threads.nthreads()) where {T<:AbstractKernel}
+function threaded_kernel_impl!(::T, kern, hp, x, xp, dist = Euclidean(), ix = last(axes(x)),
+                               ixp = last(axes(xp)),
+                               nth = Threads.nthreads()) where {T<:AbstractKernel}
     if nth == 1
-        kernel_impl!(T(), kern, hp, x, xp, ix, ixp)
+        kernel_impl!(T(), kern, hp, x, xp, dist, ix, ixp)
         return nothing
     end
 
@@ -80,18 +86,18 @@ function threaded_kernel_impl!(::T, kern, hp, x, xp, ix=last(axes(x)), ixp=last(
     fid, lid = (first(maxiter), last(maxiter))
     mid = (fid + lid) >> 1
     ix1, ixp1 = cond ? (fid:mid, ixp) : (ix, fid:mid)
-    ix2, ixp2 = cond ? ((1 + mid):lid, ixp) : (ix, (1 + mid):lid)
+    ix2, ixp2 = cond ? ((1+mid):lid, ixp) : (ix, (1+mid):lid)
     nth2 = nth >> 1
 
-    t = Threads.@spawn threaded_kernel_impl!(T(), kern, hp, x, xp, ix1, ixp1, nth2)
-    threaded_kernel_impl!(T(), kern, hp, x, xp, ix2, ixp2, nth - nth2)
+    t = Threads.@spawn threaded_kernel_impl!(T(), kern, hp, x, xp, dist, ix1, ixp1, nth2)
+    threaded_kernel_impl!(T(), kern, hp, x, xp, dist, ix2, ixp2, nth - nth2)
     wait(t)
 
     return nothing
 end
 
 @inline function threaded_kernel_impl!(::T, kern::A, x, xp, hp,
-                                       nth=Threads.nthreads()) where {T<:AbstractKernel,
-                                                                      A<:AbstractGPUArray}
+                                       nth = Threads.nthreads()) where {T<:AbstractKernel,
+                                                                        A<:AbstractGPUArray}
     return kernel_impl!(T(), kern, x, xp, hp)
 end

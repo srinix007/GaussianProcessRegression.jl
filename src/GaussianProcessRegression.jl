@@ -12,7 +12,7 @@ export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise
        predict, predict!, update!, posterior, AbstractProcess, AbstractDistribution,
        NormalDistribution, GaussianProcess, update_params!, update_cache!, loss,
        MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, model_cache,
-       TrainGPRCache, train!, train, Cmap
+       TrainGPRCache, train!, train, Cmap, SplitDistanceA, SplitDistanceC
 
 const lz = LazyTensor
 

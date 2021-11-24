@@ -12,28 +12,33 @@ function update_cache!(mdc::AbstractModelCache, md::AbstractGPRModel)
     return nothing
 end
 
-function predict(md::GPRModel{C,T,P,X}, xp::X) where {C,T,P,X}
+function predict(md::GPRModel, xp)
     μₚ = similar(xp, size(xp, 2))
     predict!(μₚ, md, xp)
     return μₚ
 end
 
-function predict!(μₚ, md::GPRModel{C,T,P,X}, xp::X) where {C,T,P,X}
+function predict!(μₚ, md::GPRModel, xp)
     Kxp = kernel(md.covar, md.params, xp, md.x)
-    mul!(μₚ, Kxp, md.cache.wt)
+    predict_mean!(μₚ, Kxp, md.cache.wt)
     return nothing
 end
 
-function predict!(μₚ, Σₚ, md::GPRModel{C,T,P,X}, xp::X) where {C,T,P,X}
+function predict!(μₚ, Σₚ, md::GPRModel, xp)
     Kxp = kernel(md.covar, md.params, xp, md.x)
-    predict!(μₚ, Σₚ, Kxp)
-    return nothing
-end
-
-function predict!(μₚ, Σₚ, Kxp)
-    mul!(μₚ, Kxp, md.cache.wt)
     kernel!(Σₚ, md.covar, md.params, xp)
-    rdiv!(Kxp, md.cache.kxx_chol.U)
+    predict_mean!(μₚ, Kxp, md.cache.wt)
+    predict_covar!(Σₚ, Kxp, md.cache.kxx_chol)
+    return nothing
+end
+
+function predict_mean!(μₚ, Kxp, wt)
+    mul!(μₚ, Kxp, wt)
+    return nothing
+end
+
+function predict_covar!(Σₚ, Kxp, kchol)
+    rdiv!(Kxp, kchol.U)
     mul!(Σₚ, Kxp, Kxp', -1.0, 1.0)
     return nothing
 end

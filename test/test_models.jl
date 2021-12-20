@@ -5,12 +5,12 @@
 
     x = rand(dim, n)
     xp = rand(dim, np)
-    y = dropdims(sin.(sum(x; dims=1)) .^ 2; dims=1)
-    yp = dropdims(sin.(sum(xp; dims=1)) .^ 2; dims=1)
+    y = dropdims(sin.(sum(x; dims = 1)) .^ 2; dims = 1)
+    yp = dropdims(sin.(sum(xp; dims = 1)) .^ 2; dims = 1)
 
     @testset "Type Stability" begin
         md = @inferred GPRModel(SquaredExp() + WhiteNoise(), x, y)
-        @inferred predict!(similar(yp), md, xp)
+        @inferred predict_mean(md, xp)
         @inferred predict(md, xp)
         @inferred update_params!(md, rand(size(md.params)...))
     end
@@ -32,19 +32,19 @@
 
     @testset "Numerics" begin
         md2 = @inferred GPRModel(SquaredExp() + SquaredExp(), x, y)
-        @test predict(md2, x) ≈ y rtol = 1e-7
+        @test predict_mean(md2, x) ≈ y rtol = 1e-7
 
         μₚ = similar(y)
         Σₚ = similar(y, size(y, 1), size(y, 1))
-        predict!(μₚ, Σₚ, md2, x)
+        μₚ, Σₚ = predict(md2, x)
         @test Σₚ ≈ zeros(size(y, 1), size(y, 1)) atol = 1e-7
 
         md3 = @inferred GPRModel(SquaredExp() + WhiteNoise(), x, y)
         md3.params[end] = 1e-5
         GaussianProcessRegression.update_cache!(md3.cache, md3)
-        @test predict(md3, x) ≈ y rtol = 1e-3
+        @test predict_mean(md3, x) ≈ y rtol = 1e-3
 
-        predict!(μₚ, Σₚ, md3, x)
+        μₚ, Σₚ = predict(md3, x)
         @test Σₚ ≈ zeros(size(y, 1), size(y, 1)) atol = 1e-3
     end
 end

@@ -1,9 +1,7 @@
-covs = (SquaredExp(), SquaredExp() + WhiteNoise())
+covs = (SquaredExp(), SquaredExp() + WhiteNoise(), SquaredExp() + SquaredExp(),
+        SquaredExp() + SquaredExp() + WhiteNoise())
 
-@testset verbose = true "Split Kernel" for cov in covs,
-                                           dim in (2, 3, 5),
-                                           n in (100, 200, 26)
-
+@testset verbose = true "Split Kernel" for dim in (2, 3, 5), n in (100, 200, 26)
     x = rand(dim, n)
     xe = rand(dim, n + rand((100, -10)))
     xq = rand(dim, n + rand((100, -10)))
@@ -35,7 +33,7 @@ covs = (SquaredExp(), SquaredExp() + WhiteNoise())
     end
 
     #! format: off
-    @testset "SplitCovar" begin
+    @testset verbose=true "SplitCovar" for cov in covs
         hp = rand(dim_hp(cov, dim))
         KK = kernel(cov, hp, x, xeq[:, :])
         Kxp = kernel(cov, hp, x, xeq);

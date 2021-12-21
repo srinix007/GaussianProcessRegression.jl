@@ -41,6 +41,25 @@ function predict!(μₚ, Σₚ, Kxp, md::GPRModel, xp)
     return nothing
 end
 
+function predict!(μₚ, Σₚ::Diagonal, Kxp, md::GPRModel{K}, xp) where {K<:ComposedKernel}
+    kernel!(Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
+    dim = size(md.x, 1)
+    hps = split(md.params, [dim_hp(x, dim) for x in md.covar.kernels])
+    Σd = sum(hps[i][1]^2 for i = 1:length(md.covar.kernels))
+    fill!(Σₚ.diag, Σd)
+    predict_covar_impl!(Σₚ, Kxp, md.cache.kxx_chol)
+    return nothing
+end
+
+function predict!(μₚ, Σₚ::Diagonal, Kxp, md::GPRModel, xp)
+    kernel!(Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
+    fill!(Σₚ.diag, md.params[1]^2)
+    predict_covar_impl!(Σₚ, Kxp, md.cache.kxx_chol)
+    return nothing
+end
+
 @inline predict_mean_impl!(μₚ, Kxp, wt) = mul!(μₚ, Kxp, wt)
 
 """
@@ -52,4 +71,14 @@ function predict_covar_impl!(Σₚ, Kxp, kchol)
     rdiv!(Kxp, kchol.U)
     mul!(Σₚ, Kxp, Kxp', -1.0, 1.0)
     return nothing
+end
+
+function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol)
+    rdiv!(Kxp, kchol.U)
+    #nx = size(kchol, 1)
+    #kx = similar(Kxp, 1, nx)
+    Threads.@threads for i = 1:length(Σₚ.diag)
+        #copyto!(kx, CartesianIndices(kx), Kxp, CartesianIndices((i:i, 1:nx)))
+        @inbounds @views Σₚ.diag[i] -= dot(Kxp[i, :], Kxp[i, :])
+    end
 end

@@ -47,4 +47,18 @@
         μₚ, Σₚ = predict(md3, x)
         @test Σₚ ≈ zeros(size(y, 1), size(y, 1)) atol = 1e-3
     end
+
+    @testset "Covar diagonal" begin
+        md = GPRModel(SquaredExp() + WhiteNoise(), x, y)
+        Σd = similar(xp, size(xp, 2))
+        Kxp = similar(xp, size(xp, 2), size(md.x, 2))
+        yp, Σf = predict(md, xp)
+        predict!(yp, Diagonal(Σd), Kxp, md, xp)
+        @test diag(Σf) ≈ Σd atol = 1e-5
+
+        md2 = GPRModel(SquaredExp(), x, y)
+        yp, Σf = predict(md2, xp)
+        predict!(yp, Diagonal(Σd), Kxp, md2, xp)
+        @test diag(Σf) ≈ Σd atol = 1e-5
+    end
 end

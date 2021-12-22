@@ -75,10 +75,7 @@ end
 
 function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol)
     rdiv!(Kxp, kchol.U)
-    #nx = size(kchol, 1)
-    #kx = similar(Kxp, 1, nx)
     Threads.@threads for i = 1:length(Σₚ.diag)
-        #copyto!(kx, CartesianIndices(kx), Kxp, CartesianIndices((i:i, 1:nx)))
         @inbounds @views Σₚ.diag[i] -= dot(Kxp[i, :], Kxp[i, :])
     end
 end

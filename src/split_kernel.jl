@@ -46,23 +46,24 @@ end
 
 SplitKernel(::SquaredExp, x, cm::Cmap) = SplitKernel(x, cm, 1)
 
-Base.size(Kxp::SplitKernel) = (size(Kxp.x, 2), size(Kxp.A)...)
+Base.size(Kxp::SplitKernel) = (size(Kxp.A, 1), size(Kxp.A, 2), size(Kxp.x, 2),
+                               size(Kxp.A, 3))
 Base.size(Kxp::SplitKernel, i) = size(Kxp)[i]
 
 function Base.getindex(Kxp::SplitKernel, ::Colon, ::Colon, ::Colon)
-    sr = 1:size(Kxp, 1)
-    er = 1:size(Kxp, 2)
-    qr = 1:size(Kxp, 3)
+    sr = 1:size(Kxp, 3)
+    er = 1:size(Kxp, 1)
+    qr = 1:size(Kxp, 2)
     nr = 1:size(Kxp, 4)
-    KK = zeros(eltype(Kxp.A), length(sr), length(er), length(qr))
+    KK = zeros(eltype(Kxp.A), length(er), length(qr), length(sr))
     @turbo for n in nr, q in qr, e in er, s in sr
-        KK[s, e, q] += Kxp.A[e, q, n] * Kxp.B[e, s, n] * Kxp.C[s, q, n]
+        KK[e, q, s] += Kxp.A[e, q, n] * Kxp.B[e, s, n] * Kxp.C[s, q, n]
     end
     return KK
 end
 
-function Base.getindex(Kxp::SplitKernel, ::Colon, e::Int, q::Int)
-    sr = 1:size(Kxp, 1)
+function Base.getindex(Kxp::SplitKernel, e::Int, q::Int, ::Colon)
+    sr = 1:size(Kxp, 3)
     nr = 1:size(Kxp, 4)
     KK = zeros(eltype(Kxp.A), length(sr))
     @turbo for n in nr, s in sr
@@ -71,7 +72,7 @@ function Base.getindex(Kxp::SplitKernel, ::Colon, e::Int, q::Int)
     return KK
 end
 
-function Base.getindex(Kxp::SplitKernel, s::Int, e::Int, q::Int)
+function Base.getindex(Kxp::SplitKernel, e::Int, q::Int, s::Int)
     nr = 1:size(Kxp, 4)
     kk = zero(eltype(Kxp.A))
     @inbounds for n in nr
@@ -101,34 +102,33 @@ function distance!(::SplitDistanceC, D, xs, xq)
     return nothing
 end
 
-function kernel(cov::ComposedKernel, hp, x, xp::Cmap)
+function kernel(cov::ComposedKernel, hp, xp::Cmap, x)
     Kxps = SplitKernel(cov, x, xp)
-    kernel!(Kxps, cov, hp, x, xp)
+    kernel!(Kxps, cov, hp, xp, x)
     return Kxps
 end
 
-function kernel(::SquaredExp, hp, x, xp::Cmap)
+function kernel(::SquaredExp, hp, xp::Cmap, x)
     Kxps = SplitKernel(SquaredExp(), x, xp)
-    kernel!(Kxps, SquaredExp(), hp, x, xp)
+    kernel!(Kxps, SquaredExp(), hp, xp, x)
     return Kxps
 end
 
-function kernel!(Kxps::SplitKernel, cov::ComposedKernel, hp, x, xp::Cmap)
+function kernel!(Kxps::SplitKernel, cov::ComposedKernel, hp, xp::Cmap, x)
     hps = split(hp, [dim_hp(t, size(x, 1)) for t in cov.kernels])
     Ks, hpn = rm_noise(cov, hps)
     for i in eachindex(Ks)
-        kernel!(Kxps, i, Ks[i], hpn[i], x, xp)
+        kernel!(Kxps, i, Ks[i], hpn[i], xp, x)
     end
     return nothing
 end
 
-function kernel!(Kxps::SplitKernel, ::SquaredExp, hp, x, xp::Cmap)
-    kernel!(Kxps, 1, SquaredExp(), hp, x, xp)
+function kernel!(Kxps::SplitKernel, ::SquaredExp, hp, xp::Cmap, x)
+    kernel!(Kxps, 1, SquaredExp(), hp, xp, x)
     return nothing
 end
 
-
-function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, x, xp::Cmap)
+function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, xp::Cmap, x)
     hps = copy(hp)
     hps[1] = 1.0
     @views kernel!(Kxp.A[:, :, nkrn], SquaredExp(), hps, xp.xe, xp.xq;
@@ -138,16 +138,17 @@ function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, x, xp::Cmap)
     return nothing
 end
 
-#@inline kernel!(::WhiteNoise, Kxp::SplitKernel, hp, x, xp::Cmap) = nothing
-
-#@inline function kernel!(::AbstractKernel, Kxp::SplitKernel, hp, x, xp::Cmap)
-#    throw("Error: Covar not a SquaredExp")
-#end
-
 function predict_split_mean!(μₚ, A, B, C, wt)
+    Cw = similar(C)
+    BCw = similar(A)
+    predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
+    return nothing
+end
+
+function predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
     μₚ .= A
-    Cw = Diagonal(wt) * C
-    BCw = B * Cw
+    mul!(Cw, Diagonal(wt), C)
+    mul!(BCw, B, Cw)
     μₚ .*= BCw
     return nothing
 end

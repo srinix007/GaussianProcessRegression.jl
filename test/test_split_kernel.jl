@@ -35,11 +35,11 @@ covs = (SquaredExp(), SquaredExp() + WhiteNoise(), SquaredExp() + SquaredExp(),
     #! format: off
     @testset verbose=true "SplitCovar" for cov in covs
         hp = rand(dim_hp(cov, dim))
-        KK = kernel(cov, hp, x, xeq[:, :])
-        Kxp = kernel(cov, hp, x, xeq);
+        KK = kernel(cov, hp, xeq[:, :], x)
+        Kxp = kernel(cov, hp, xeq, x);
         for e = 1:size(xe, 2), q = 1:size(xq, 2), s in size(x, 2)
             idx = LinearIndices((size(xe, 2), size(xq, 2)))[e, q]
-            @test KK[s, idx] ≈ Kxp[s, e, q]
+            @test KK[idx, s] ≈ Kxp[e, q, s]
         end
     end
     #! format: on

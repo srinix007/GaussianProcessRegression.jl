@@ -12,16 +12,19 @@ function update_cache!(mdc::AbstractModelCache, md::AbstractGPRModel)
     return nothing
 end
 
+alloc_kernel(cov::AbstractKernel, xp, x) = similar(xp, size(xp, 2), size(x, 2))
+alloc_mean(x) = similar(x, size(x)[2:end]...)
+
 function predict_mean(md::AbstractGPRModel, xp)
-    μₚ = similar(md.x, size(xp, 2))
-    Kxp = similar(md.x, size(xp, 2), size(md.x, 2))
+    μₚ = alloc_mean(xp)
+    Kxp = alloc_kernel(md.covar, xp, md.x)
     predict_mean!(μₚ, Kxp, md, xp)
     return μₚ
 end
 
 function predict(md::AbstractGPRModel, xp)
-    μₚ = similar(md.x, size(xp, 2))
-    Kxp = similar(md.x, size(xp, 2), size(md.x, 2))
+    μₚ = alloc_mean(xp)
+    Kxp = alloc_kernel(md.covar, xp, md.x)
     Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
     predict!(μₚ, Σₚ, Kxp, md, xp)
     return μₚ, Σₚ

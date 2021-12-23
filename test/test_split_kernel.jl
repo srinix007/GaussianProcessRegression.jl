@@ -45,3 +45,28 @@ covs = (SquaredExp(), SquaredExp() + WhiteNoise(), SquaredExp() + SquaredExp(),
     #! format: on
 
 end
+
+@testset "Prediction" begin
+
+    for cov in covs,
+        dim in (1, 2, 5),
+        n in (100, 200, 500),
+        e in (10, 20, 50),
+        q in (10, 30)
+
+        x = rand(dim, n)
+        xe = rand(dim, e)
+        xq = rand(dim, q)
+        xeq = Cmap(+, xe, xq)
+        xp = xeq[:, :]
+        y = dropdims(sin.(sum(x; dims = 1)) .^ 2; dims = 1)
+        #yp = dropdims(sin.(sum(xp; dims = 1)) .^ 2; dims = 1)
+        md = GPRModel(cov, x, y)
+
+        @testset "Mean" begin
+            yp = predict_mean(md, xp)
+            yps = predict_mean(md, xeq)
+            @test reshape(yps, :) ≈ yp
+        end
+    end
+end

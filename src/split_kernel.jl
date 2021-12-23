@@ -138,30 +138,25 @@ function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, xp::Cmap, x)
     return nothing
 end
 
+alloc_kernel(cov::AbstractKernel, xp::Cmap, x) = SplitKernel(cov, x, xp)
+
+predict_mean_impl!(μₚ, Kxp::SplitKernel, wt) = predict_split_mean!(μₚ, Kxp.A, Kxp.B, Kxp.C,
+                                                                   wt)
+
 function predict_split_mean!(μₚ, A, B, C, wt)
-    Cw = similar(C)
-    BCw = similar(A)
+    Cw = similar(C, size(C)[1:end-1]...)
+    BCw = similar(A, size(A)[1:end-1]...)
     predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
     return nothing
 end
 
 function predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
-    μₚ .= A
-    mul!(Cw, Diagonal(wt), C)
-    mul!(BCw, B, Cw)
-    μₚ .*= BCw
-    return nothing
-end
-
-function predict_split_covar!(Σₚ, md::AbstractGPRModel, Kxp::SplitKernel)
-    nx = size(C, 1)
-    kxp = similar(A, nx)
-
-    for e in axes(A, 1), q in axes(A, 2)
-        @views kxp .= A[e, q] .* B[e, :] .* C[:, q]
-        K⁻¹kxp = kxp / md.cache.kxx_chol.U
-        tt = dot(kxp, Kkxp)
-        Σₚ[e, q] = kernel(md.cov, md.params, Kxp.xp[e, q]) - tt
+    fill!(μₚ, zero(eltype(μₚ)))
+    for k in axes(A, 3)
+        @views mul!(Cw, Diagonal(wt), C[:, :, k])
+        @views mul!(BCw, B[:, :, k], Cw)
+        @views BCw .*= A[:, :, k]
+        μₚ .+= BCw
     end
     return nothing
 end

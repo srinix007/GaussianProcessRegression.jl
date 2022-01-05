@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.16.4
+# v0.17.3
 
 using Markdown
 using InteractiveUtils
@@ -17,20 +17,26 @@ end
 # ╔═╡ 72620701-24dd-460e-8b49-0c53dcdd577f
 using GaussianProcessRegression
 
+# ╔═╡ 38aa7580-31d6-400c-8480-6899b0255f84
+begin
+	dim = 1
+	n = 5
+end
+
 # ╔═╡ a0895e98-2d01-48ae-b249-22655a21b71c
-x  = rand(1, 5);
+x  = rand(dim, n);
 
 # ╔═╡ a786390d-fc31-4eed-9d97-1bf29485e2e6
 f(x) = dropdims(sum((@. 25.0 * sin(2.0*cos(3.0*x))), dims=1), dims=1);
 
 # ╔═╡ 13c44ff7-c021-4ae7-a5b2-3f6a49a864c5
-y = f(x)
+y = f(x) .+ 1e-1 .* randn(n)
 
 # ╔═╡ 68f21ff2-f6d8-4132-ac1e-978d9be87d94
-md = GPRModel(SquaredExp(), x, y)
+md = GPRModel(SquaredExp() + WhiteNoise(), x, y)
 
 # ╔═╡ 9bc25e84-35d5-4e7f-8c26-81ecdfb12b7a
-res = train(md, MarginalLikelihood())
+res = train(md, MarginalLikelihood(); method=NelderMead())
 
 # ╔═╡ deb35813-a714-4aed-8ef3-72d008f591f1
 begin
@@ -54,7 +60,7 @@ xp = reshape(collect(0:0.01:1), (1, :))
 update_params!(md, hpmin)
 
 # ╔═╡ e50be0b8-43cc-4cf4-87cd-e7af7e8047e3
-yp, Σp = posterior(md, xp);
+yp, Σp = predict(md, xp);
 
 # ╔═╡ 40ca4cf4-2472-4eea-a713-63d613a8b0b1
 yt = f(xp)
@@ -75,6 +81,7 @@ end
 # ╔═╡ Cell order:
 # ╠═a09e1670-45de-11ec-0a4b-9d1ced6b0199
 # ╠═72620701-24dd-460e-8b49-0c53dcdd577f
+# ╠═38aa7580-31d6-400c-8480-6899b0255f84
 # ╠═a0895e98-2d01-48ae-b249-22655a21b71c
 # ╠═a786390d-fc31-4eed-9d97-1bf29485e2e6
 # ╠═13c44ff7-c021-4ae7-a5b2-3f6a49a864c5

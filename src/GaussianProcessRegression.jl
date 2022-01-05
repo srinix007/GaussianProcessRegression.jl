@@ -13,7 +13,8 @@ export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise
        predict_mean_impl!, update!, posterior, AbstractProcess, AbstractDistribution,
        NormalDistribution, GaussianProcess, update_params!, update_cache!, loss,
        MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, model_cache,
-       TrainGPRCache, train!, train, Cmap, SplitKernel, SplitDistanceA, SplitDistanceC
+       TrainGPRCache, train!, train, Cmap, SplitKernel, SplitDistanceA, SplitDistanceC,
+       hessian_fd, hessian_fd!, bfgs_quad!, bfgs_quad, bfgs_hessian
 
 const lz = LazyTensor
 
@@ -26,5 +27,6 @@ include("predict.jl")
 include("split_kernel.jl")
 include("loss.jl")
 include("train.jl")
+include("update_model.jl")
 
 end

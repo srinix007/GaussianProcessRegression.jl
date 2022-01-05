@@ -1,3 +1,42 @@
+struct BFGSQuadCache{T,K<:AbstractArray{T},W<:AbstractArray{T}} <: AbstractModelCache
+    J::K
+    hess::W
+    ϵJ::T
+    function BFGSQuadCache(J, hess, ϵJ)
+        return new{eltype(J),typeof.((J, hess))...}(J, hess, ϵJ)
+    end
+end
+
+function BFGSQuadCache(md::AbstractGPRModel, cost::AbstractLoss, hp)
+    np = size(hp, 1)
+    J = grad(cost, md)
+    jac = let cost = cost, md = md
+        x -> grad(cost, x, md)
+    end
+    hess = hessian_fd(jac, hp)
+    return BFGSQuadCache(J, hess, norm(J))
+end
+
+function update_sample!(md::AbstractGPRModel, cost::AbstractLoss, δy)
+    md.y .+= δy
+    tc = model_cache(md)(md)
+    uc = BFGSQuadCache(md, cost, md.params)
+    iters = update_sample!(uc, tc, cost)
+    return iters
+end
+
+function update_sample!(mc::BFGSQuadCache, tc::AbstractModelCache, cost::AbstractLoss)
+    function jac(x)
+        ret = similar(x)
+        let tc = tc
+            update_cache!(tc, x)
+            ret = grad(cost, tc)
+        end
+        return ret
+    end
+    iters = bfgs_quad!(md.hp, mc.J, mc.hess, jac, mc.ϵJ)
+    return iters
+end
 
 function bfgs_hessian(Bi, s, t, ρ = one(eltype(s)) / dot(s, t))
     C = I - ρ * s * t'

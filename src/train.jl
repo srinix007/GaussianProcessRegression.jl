@@ -9,10 +9,13 @@ struct TrainGPRCache{T,C<:AbstractKernel,P<:AbstractArray{T},X<:AbstractArray{T}
     kerns::K
     kchol_base::L
     ∇K::L
-    function TrainGPRCache(cov, hp, x, y, α, kerns, kchol, ∇K)
+    K⁻¹::L
+    tt::Y
+    function TrainGPRCache(cov, hp, x, y, α, kerns, kchol, ∇K, K⁻¹, tt)
         return new{eltype(α),typeof(cov),typeof.((hp, x, y, kerns, kchol))...}(cov, hp, x,
                                                                                y, α, kerns,
-                                                                               kchol, ∇K)
+                                                                               kchol, ∇K,
+                                                                               K⁻¹, tt)
     end
 end
 
@@ -27,7 +30,9 @@ function TrainGPRCache(cov::AbstractKernel, hp, x, y)
     kchol_base = similar(x, n, n)
     ∇K = similar(x, n, n)
     α = similar(x, n)
-    return TrainGPRCache(cov, hp, x, y, α, kerns, kchol_base, ∇K)
+    K⁻¹ = I + zeros(eltype(x), n, n)
+    tt = similar(α)
+    return TrainGPRCache(cov, hp, x, y, α, kerns, kchol_base, ∇K, K⁻¹, tt)
 end
 
 @inline TrainGPRCache(md::AbstractGPRModel) = TrainGPRCache(md.covar, copy(md.params), md.x,
@@ -53,7 +58,8 @@ function update_cache!(tc::TrainGPRCache, hp)
         tc.kchol_base .= tc.kerns[1]
     end
     kchol = cholesky!(tc.kchol_base)
-    tc.α .= kchol \ tc.y
+    ldiv!(tc.α, kchol, tc.y)
+    ldiv!(kchol, tc.K⁻¹)
     return nothing
 end
 
@@ -68,7 +74,7 @@ function grad(::MarginalLikelihood, mc::AbstractModelCache)
     @inbounds for i in eachindex(∇L)
         ret = grad!(mc.cov, mc.∇K, i, mc.hp, mc.x, mc.kerns)
         ∇K = ret === nothing ? mc.∇K : ret
-        ∇L[i] = grad(MarginalLikelihood(), kchol, ∇K, mc.α)
+        ∇L[i] = grad(MarginalLikelihood(), kchol, ∇K, mc.α, mc.K⁻¹, mc.tt)
     end
     return ∇L
 end

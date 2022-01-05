@@ -50,9 +50,15 @@ end
 
 function grad(::MarginalLikelihood, kchol::Cholesky, ∇K, α)
     K⁻¹ = inv(kchol)
-    C = α * α'
-    C .= C .- K⁻¹
-    gr = dot(C, ∇K)
+    tt = similar(α)
+    return grad(MarginalLikelihood(), kchol, ∇K, α, K⁻¹, tt)
+end
+
+function grad(::MarginalLikelihood, kchol::Cholesky, ∇K, α, K⁻¹, tt)
+    #C = α * α'
+    mul!(tt, ∇K, α)
+    #C .= C .- K⁻¹
+    gr = dot(tt, α) - dot(K⁻¹, ∇K)
     return -0.5 * gr
 end
 

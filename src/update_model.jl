@@ -24,7 +24,7 @@ function bfgs_quad!(θ, JJ, B, ∇L, ϵ, max_iter = 100)
         JJ .= ∇L(θ)
         s .= θ .- s
         t .= JJ .- t
-        B .= bfgs_hessian(copy(B), s, t)
+        B .= bfgs_hessian(B, s, t)
         iter += 1
     end
     return iter

@@ -1,4 +1,4 @@
-@testset verbose = true "BFGS Quad dim=$dim" for dim = 2:15
+@testset verbose = true "BFGS Quad dim=$dim" for dim = 2:30
     J = rand(dim)
     L = LowerTriangular(rand(dim, dim))
     H = Hermitian(L * L' + 1e-7 * I)
@@ -6,15 +6,20 @@
     jac = let J = J, H = H
         x -> J + H * x
     end
-    jac1(x) = 3.0 .* ones(dim) + diagm([i * 2.0 for i = 1:dim]) * x
-    J1 = 3.0 .* ones(dim)
-    H1 = diagm([i * 2.0 for i = 1:dim])
-    eps = 1e-3
+    xma = -H \ J
+    eps = 1e-4
     max_iter = 100000
 
     @testset "Hessian finite diff" begin
         @test isposdef(H)
         @test hessian_fd(x -> J + H * x, rand(dim)) ≈ H atol = eps
+    end
+
+    @testset "Quadratic optimization" begin
+        xm, Jm, Hm, iters = bfgs_quad(x0, jac(x0), I, jac; ϵ = eps, max_iter = max_iter)
+        @test iters < max_iter
+        @test xm ≈ xma rtol = eps
+        @test norm(Jm) < eps
     end
 end
 

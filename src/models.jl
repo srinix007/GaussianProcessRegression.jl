@@ -33,9 +33,12 @@ end
 
 function GPRModel(cov, x, y)
     dim = size(x, 1)
-    n = size(x, 2)
     T = eltype(x)
     hp = rand(T, dim_hp(cov, dim))
+    return GPRModel(cov, x, y, hp)
+end
+
+function GPRModel(cov, x, y, hp)
     kxx = kernel(cov, hp, x)
     kxx_chol = cholesky!(kxx)
     wt = kxx_chol \ y

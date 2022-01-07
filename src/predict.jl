@@ -5,6 +5,8 @@ function update_params!(md::AbstractGPRModel, hp)
     return nothing
 end
 
+update_cache!(md::AbstractGPRModel) = update_cache!(md.cache, md)
+
 function update_cache!(mdc::AbstractModelCache, md::AbstractGPRModel)
     kernel!(mdc.kxx, md.covar, md.params, md.x)
     cholesky!(mdc.kxx)

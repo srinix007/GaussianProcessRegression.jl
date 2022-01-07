@@ -24,6 +24,9 @@ function sample(N::NormalDistribution)
     return s
 end
 
+sample(gp::GaussianProcess, x) = sample(gp(x))
+sample(gp::GaussianProcess, x, θ) = sample(gp(x, θ))
+
 struct GaussianProcess{M,K<:AbstractKernel} <: AbstractProcess
     f_μ::M
     kernel::K

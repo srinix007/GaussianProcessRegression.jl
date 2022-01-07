@@ -1,40 +1,52 @@
 struct BFGSQuadCache{T,K<:AbstractArray{T},W<:AbstractArray{T}} <: AbstractModelCache
+    hp::K
     J::K
     hess::W
     ϵJ::T
-    function BFGSQuadCache(J, hess, ϵJ)
-        return new{eltype(J),typeof.((J, hess))...}(J, hess, ϵJ)
+    function BFGSQuadCache(hp, J, hess, ϵJ)
+        return new{eltype(J),typeof.((J, hess))...}(hp, J, hess, ϵJ)
     end
 end
 
-function BFGSQuadCache(md::AbstractGPRModel, cost::AbstractLoss, hp)
-    np = size(hp, 1)
-    J = grad(cost, md)
+function BFGSQuadCache(md::AbstractGPRModel)
+    np = size(md.params, 1)
+    hp = similar(md.params)
+    J = similar(md.params)
+    hess = similar(J, np, np)
+    return BFGSQuadCache(hp, J, hess, 1e-4)
+end
+
+function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLoss)
+    uc.J .= grad(cost, md)
     jac = let cost = cost, md = md
         x -> grad(cost, x, md)
     end
-    hess = hessian_fd(jac, hp)
-    return BFGSQuadCache(J, hess, norm(J))
+    hess = hessian_fd(jac, md.params)
+    return BFGSQuadCache(copy(md.params), J, hess, norm(J))
 end
 
 function update_sample!(md::AbstractGPRModel, cost::AbstractLoss, δy)
-    md.y .+= δy
     tc = model_cache(md)(md)
-    uc = BFGSQuadCache(md, cost, md.params)
-    iters = update_sample!(uc, tc, cost)
+    uc = BFGSQuadCache(md)
+    update_cache!(uc, md, cost)
+    iters = update_sample!(md, uc, tc, cost, δy)
     return iters
 end
 
-function update_sample!(mc::BFGSQuadCache, tc::AbstractModelCache, cost::AbstractLoss)
+function update_sample!(md::AbstractGPRModel, mc::BFGSQuadCache, tc::AbstractModelCache,
+                        cost::AbstractLoss, δy)
+    md.y .+= δy
+    update_cache!(tc, md, md.params)
     function jac(x)
         ret = similar(x)
         let tc = tc
             update_cache!(tc, x)
-            ret = grad(cost, tc)
+            ret .= grad(cost, tc)
         end
         return ret
     end
-    iters = bfgs_quad!(md.hp, mc.J, mc.hess, jac, mc.ϵJ)
+    iters = bfgs_quad!(mc.hp, mc.J, mc.hess, jac, mc.ϵJ)
+    update_params!(md, uc.hp)
     return iters
 end
 

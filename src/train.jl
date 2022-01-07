@@ -44,6 +44,13 @@ function Base.show(io::IO, ::MIME"text/plain", tc::TrainGPRCache)
     return nothing
 end
 
+function update_cache!(tc::TrainGPRCache{T,C}, md::AbstractGPRModel{C,T}, hp) where {T,C}
+    tc.x .= md.x
+    tc.y .= md.y
+    update_cache!(tc, hp)
+    return nothing
+end
+
 function update_cache!(tc::TrainGPRCache, hp)
     tc.hp .= hp
     if tc.cov isa ComposedKernel
@@ -82,15 +89,24 @@ end
 function train(md::AbstractModel, cost::AbstractLoss, hp0 = copy(md.params);
                cache = TrainGPRCache, method = NelderMead(), options = Optim.Options())
     tc = cache(md)
-    function fg!(F, G, hp)
-        update_cache!(tc, hp)
-        if G !== nothing
-            G .= grad(cost, tc)
-        end
-        if F !== nothing
-            return loss(cost, tc)
+    fg! = let tc = tc
+        function fgg!(F, G, hp)
+            update_cache!(tc, hp)
+            if G !== nothing
+                G .= grad(cost, tc)
+            end
+            if F !== nothing
+                return loss(cost, tc)
+            end
         end
     end
 
     return optimize(Optim.only_fg!(fg!), hp0, method, options)
 end
+
+function update_model!(md::AbstractGPRModel, tc::TrainGPRCache)
+    md.params .= tc.hp
+    md.cache.kxx .= tc.kchol_base
+    md.cache.wt .= tc.α
+end
+

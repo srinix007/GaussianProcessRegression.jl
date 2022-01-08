@@ -100,10 +100,11 @@ md"n = $n"
 
 # ╔═╡ eafb9f81-7dd3-4797-8267-9c0bbd55fbd6
 let 
-	p = plot()
-	scatter!(p, x[1,:], y)
-	plot!(p, xp[1,:], yp, xlabel="x", ylabel="f(x)")
-	plot!(p, xp[1,:], ypred, ribbon=2 .* diag(Σpred))
+	p = plot(legend=:topleft)
+	scatter!(p, x[1,:], y, color="black", label="samples")
+	plot!(p, xp[1,:], yp, xlabel="x", ylabel="f(x)", label="f(x)")
+	plot!(p, xp[1,:], ypred, ribbon=2 .* diag(Σpred), label="GPR(f, x)")
+	savefig(p, "GPR_1d.pdf")
 	p
 end
 

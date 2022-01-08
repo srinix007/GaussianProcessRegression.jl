@@ -8,6 +8,11 @@ struct NormalDistribution{T,M<:AbstractArray{T},C<:AbstractArray{T},K<:Cholesky{
     Σ_ch::K
 end
 
+struct GaussianProcess{M,K<:AbstractKernel} <: AbstractProcess
+    f_μ::M
+    kernel::K
+end
+
 function NormalDistribution(μ, Σ_ch::Cholesky)
     return NormalDistribution{eltype{μ},typeof{μ},typeof(Σ_ch)}(μ, Σ_ch)
 end
@@ -27,10 +32,6 @@ end
 sample(gp::GaussianProcess, x) = sample(gp(x))
 sample(gp::GaussianProcess, x, θ) = sample(gp(x, θ))
 
-struct GaussianProcess{M,K<:AbstractKernel} <: AbstractProcess
-    f_μ::M
-    kernel::K
-end
 
 function (gp::GaussianProcess)(x)
     θ = rand(eltype(x), dim_hp(gp.kernel, size(x, 1)))

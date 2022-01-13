@@ -5,6 +5,7 @@ using GPUArrays
 using LinearAlgebra
 using LoopVectorization
 using Optim
+using LineSearches
 
 export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise,
        ComposedKernel, kernel, kernel!, serial_kernel, distance, distance!, dim_hp, grad!,

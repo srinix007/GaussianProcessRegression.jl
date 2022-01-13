@@ -20,10 +20,12 @@ begin
 	Pkg.activate("./GaussianProcessRegression.jl/")
 	using Plots
 	using Optim
+	using LineSearches
 	using Revise
 	using LinearAlgebra
 	using PlutoUI
 	using Random
+	using LaTeXStrings
 end
 
 # ╔═╡ 72620701-24dd-460e-8b49-0c53dcdd577f
@@ -37,6 +39,14 @@ cov = SquaredExp()
 
 # ╔═╡ d94133a5-94a8-4723-ba40-9f154fa60374
 gpp = GaussianProcess(x->zero(eltype(x)), cov)
+
+# ╔═╡ ae4fd00b-2cde-428e-8534-17d7d25254d8
+#res = let
+	#f(x) = loss(MarginalLikelihood(), exp.(x), md1)
+	#J(x) = x .* grad(MarginalLikelihood(), exp.(x), md1)
+	#res = optimize(f, [0.1, 0.1], LBFGS(), Optim.Options(g_tol=1e-3); inplace=false)
+	#res
+#end
 
 # ╔═╡ 68d6be64-4d07-4736-a2c6-17e5b9eb0bbf
 @bind σ Slider(0.01:0.1:10)
@@ -74,11 +84,17 @@ md1 = GPRModel(cov, x, y);
 # ╔═╡ d784f186-c2c9-47fb-82a0-6c6daa5a55e5
 md1.params, loss(MarginalLikelihood(), md1)
 
+# ╔═╡ 1a9a0557-0923-4bdf-9c61-96be342c775a
+loss(MarginalLikelihood(), [2.0, 0.8], md1)
+
+# ╔═╡ 44f42249-ff30-4e98-abb8-c46fee500bfe
+ grad(MarginalLikelihood(), [1.0, 0.1], md1)
+
 # ╔═╡ a02c352f-4fe8-438d-8bf8-eab8e95fe2a8
-res = train(md1, MarginalLikelihood(); options = Optim.Options(g_tol=1e-2))
+res = train(md1, MarginalLikelihood(), method=NelderMead(), options = Optim.Options(g_tol=1e-2))
 
 # ╔═╡ caf6081e-6475-419e-bfe7-8912426e5e75
-hpmin = Optim.minimizer(res)
+hpmin = exp.(Optim.minimizer(res))
 
 # ╔═╡ f9e08302-28a9-4fc3-8bc3-296e0bc99d5c
 loss(MarginalLikelihood(), hpmin, md1)
@@ -102,11 +118,38 @@ md"n = $n"
 let 
 	p = plot(legend=:topleft)
 	scatter!(p, x[1,:], y, color="black", label="samples")
-	plot!(p, xp[1,:], yp, xlabel="x", ylabel="f(x)", label="f(x)")
-	plot!(p, xp[1,:], ypred, ribbon=2 .* diag(Σpred), label="GPR(f, x)")
+	plot!(p, xp[1,:], yp, xlabel=L"x", ylabel=L"f(x)", label=L"f(x)")
+	plot!(p, xp[1,:], ypred, ribbon=2 .* sqrt.(diag(Σpred)), label=L"GPR(f, x)")
 	savefig(p, "GPR_1d.pdf")
 	p
 end
+
+# ╔═╡ dae0a2fa-b6ce-46ad-9d70-cadf94aadf0f
+yp2 = sample(gpp, xp, θ);
+
+# ╔═╡ 339766e9-dbab-4758-97ea-c24c23de506c
+yp_sum = yp .+ 2e-1 .* yp2;
+
+# ╔═╡ d0b96121-dad5-4384-a760-014f2632baa1
+let 
+	p = plot(xlabel=L"x", ylabel=L"f(x)", legend=:outertopright)
+	plot!(xp[1,:], yp, label=L"f(x)")
+	plot!(xp[1,:], yp2, label=L"\delta h(x)")
+	plot!(xp[1,:], yp_sum, label=L"f'(x)")
+	min1 = argmin(yp)
+	min2 = argmin(yp_sum)
+	xmin, ypmin = xp[1,min1], yp[min1]
+	xmin1, ypmin1 = xp[1,min2], yp_sum[min2]
+	scatter!(p, [xmin], [ypmin], color="blue", label=L"min(f(x))")
+	scatter!(p, [xmin1], [ypmin1], color="green", label=L"min(f'(x))")
+	vline!(p, [xmin], color="blue", label="")
+	vline!(p, [xmin1], color= "green", label="")
+	savefig(p, "Minima_shift.pdf")
+	p
+end
+
+# ╔═╡ 54b42d4c-6293-4a9a-9e5c-6178ee46af45
+
 
 # ╔═╡ Cell order:
 # ╠═a09e1670-45de-11ec-0a4b-9d1ced6b0199
@@ -121,6 +164,9 @@ end
 # ╠═58c511e1-7339-4bde-a1bf-792a5082e593
 # ╠═59cd0a20-1d26-4672-8a6f-62dc2ac56ea0
 # ╠═d784f186-c2c9-47fb-82a0-6c6daa5a55e5
+# ╠═1a9a0557-0923-4bdf-9c61-96be342c775a
+# ╠═44f42249-ff30-4e98-abb8-c46fee500bfe
+# ╠═ae4fd00b-2cde-428e-8534-17d7d25254d8
 # ╠═a02c352f-4fe8-438d-8bf8-eab8e95fe2a8
 # ╠═caf6081e-6475-419e-bfe7-8912426e5e75
 # ╠═f9e08302-28a9-4fc3-8bc3-296e0bc99d5c
@@ -134,4 +180,8 @@ end
 # ╟─e920f7c2-5301-46e2-bb39-46dd5a5aa7ac
 # ╟─2679c2ac-d840-4242-921d-937772919fa6
 # ╠═6db587f9-d626-44bf-a591-106acc740ab6
-# ╠═eafb9f81-7dd3-4797-8267-9c0bbd55fbd6
+# ╟─eafb9f81-7dd3-4797-8267-9c0bbd55fbd6
+# ╠═dae0a2fa-b6ce-46ad-9d70-cadf94aadf0f
+# ╠═339766e9-dbab-4758-97ea-c24c23de506c
+# ╟─d0b96121-dad5-4384-a760-014f2632baa1
+# ╠═54b42d4c-6293-4a9a-9e5c-6178ee46af45

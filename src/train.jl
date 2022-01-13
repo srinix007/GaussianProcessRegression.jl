@@ -64,7 +64,7 @@ function update_cache!(tc::TrainGPRCache, hp)
         kernel!(tc.kerns[1], tc.cov, hp, tc.x)
         tc.kchol_base .= tc.kerns[1]
     end
-    kchol = cholesky!(tc.kchol_base)
+    kchol = cholesky!(Hermitian(tc.kchol_base))
     ldiv!(tc.α, kchol, tc.y)
     ldiv!(kchol, tc.K⁻¹)
     return nothing
@@ -86,14 +86,17 @@ function grad(::MarginalLikelihood, mc::AbstractModelCache)
     return ∇L
 end
 
-function train(md::AbstractModel, cost::AbstractLoss, hp0 = copy(md.params);
-               cache = TrainGPRCache, method = NelderMead(), options = Optim.Options())
+function train(md::AbstractModel, cost::AbstractLoss,
+               hp0 = fill(0.1 * one(eltype(md.params)), size(md.params));
+               cache = TrainGPRCache,
+               method = ConjugateGradient(; linesearch = LineSearches.BackTracking()),
+               options = Optim.Options())
     tc = cache(md)
     fg! = let tc = tc
         function fgg!(F, G, hp)
-            update_cache!(tc, hp)
+            update_cache!(tc, exp.(hp))
             if G !== nothing
-                G .= grad(cost, tc)
+                G .= hp .* grad(cost, tc)
             end
             if F !== nothing
                 return loss(cost, tc)

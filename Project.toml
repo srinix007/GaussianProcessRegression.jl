@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"

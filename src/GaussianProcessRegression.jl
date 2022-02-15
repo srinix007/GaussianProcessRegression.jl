@@ -24,10 +24,20 @@ include("compose_covar.jl")
 include("deriv_covar.jl")
 include("models.jl")
 include("distributions.jl")
+
+export AbstractLoss, MarginalLikelihood
+
+include("loss_grad.jl")
+
+export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache,
+       MllGradCache, MllLossCache
+
+include("./caches/cache.jl")
+include("./caches/cost.jl")
+
+include("cost.jl")
+
 include("predict.jl")
 include("split_kernel.jl")
-include("loss.jl")
-include("train.jl")
-include("update_model.jl")
 
 end

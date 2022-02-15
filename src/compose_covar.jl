@@ -90,6 +90,11 @@ function alloc_kernels(K::ComposedKernel, x)
     return kerns
 end
 
+function alloc_kernels(cov::AbstractKernel, x)
+    n = size(x, 2)
+    return [similar(x, n, n)]
+end
+
 function kernels!(kerns::Vector{<:Matrix}, K::ComposedKernel, hp, x)
     dim = first(size(x))
     hps = split(hp, [dim_hp(t, dim) for t in K.kernels])

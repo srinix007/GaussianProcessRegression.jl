@@ -46,7 +46,7 @@ function update_sample!(md::AbstractGPRModel, mc::BFGSQuadCache, tc::AbstractMod
         return ret
     end
     iters = bfgs_quad!(mc.hp, mc.J, mc.hess, jac, mc.ϵJ)
-    update_params!(md, uc.hp)
+    update_params!(md, mc.hp)
     return iters
 end
 

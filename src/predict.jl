@@ -1,67 +1,68 @@
-
-function update_params!(md::AbstractGPRModel, hp)
-    md.params .= hp
-    update_cache!(md.cache, md)
-    return nothing
-end
-
-update_cache!(md::AbstractGPRModel) = update_cache!(md.cache, md)
-
-function update_cache!(mdc::AbstractModelCache, md::AbstractGPRModel)
-    kernel!(mdc.kxx, md.covar, md.params, md.x)
-    cholesky!(mdc.kxx)
-    ldiv!(mdc.wt, mdc.kxx_chol, md.y)
-    return nothing
-end
+predict_cache(::GPRModel) = GPRPredictCache
 
 alloc_kernel(cov::AbstractKernel, xp, x) = similar(xp, size(xp, 2), size(x, 2))
 alloc_mean(x) = similar(x, size(x)[2:end]...)
 
 function predict_mean(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    Kxp = alloc_kernel(md.covar, xp, md.x)
-    predict_mean!(μₚ, Kxp, md, xp)
+    pc = predict_cache(md)(md, xp)
+    predict_mean!(μₚ, md, xp, pc)
     return μₚ
 end
 
 function predict(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    Kxp = alloc_kernel(md.covar, xp, md.x)
+    pc = predict_cache(md)(md, xp)
     Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
-    predict!(μₚ, Σₚ, Kxp, md, xp)
+    predict!(μₚ, Σₚ, md, xp, pc)
     return μₚ, Σₚ
 end
 
-function predict_mean!(μₚ, Kxp, md::GPRModel, xp)
-    kernel!(Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
+# Non-allocating API
+
+function update_cache!(pc::AbstractPredictCache, md::AbstractGPRModel)
+    kernel!(pc.Kxx, md.covar, md.params, md.x)
+    kchol = cholesky!(pc.Kxx)
+    ldiv!(pc.wt, kchol, md.y)
     return nothing
 end
 
-function predict!(μₚ, Σₚ, Kxp, md::GPRModel, xp)
-    kernel!(Kxp, md.covar, md.params, xp, md.x)
+function predict_mean!(μₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCache)
+    kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
+    return nothing
+end
+
+function predict!(μₚ, Σₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCache)
+    kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
     kernel!(Σₚ, md.covar, md.params, xp)
-    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
-    predict_covar_impl!(Σₚ, Kxp, md.cache.kxx_chol)
+    kchol = Cholesky(UpperTriangular(pc.Kxx))
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
     return nothing
 end
 
-function predict!(μₚ, Σₚ::Diagonal, Kxp, md::GPRModel{K}, xp) where {K<:ComposedKernel}
-    kernel!(Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
+
+
+function predict!(μₚ, Σₚ::Diagonal, md::GPRModel{<:ComposedKernel}, xp,
+                  pc::AbstractPredictCache)
+    kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
     dim = size(md.x, 1)
     hps = split(md.params, [dim_hp(x, dim) for x in md.covar.kernels])
     Σd = sum(hps[i][1]^2 for i = 1:length(md.covar.kernels))
     fill!(Σₚ.diag, Σd)
-    predict_covar_impl!(Σₚ, Kxp, md.cache.kxx_chol)
+    kchol = Cholesky(UpperTriangular(pc.Kxx))
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
     return nothing
 end
 
-function predict!(μₚ, Σₚ::Diagonal, Kxp, md::GPRModel, xp)
-    kernel!(Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, Kxp, md.cache.wt)
+function predict!(μₚ, Σₚ::Diagonal, md::GPRModel, xp, pc::AbstractPredictCache)
+    kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
     fill!(Σₚ.diag, md.params[1]^2)
-    predict_covar_impl!(Σₚ, Kxp, md.cache.kxx_chol)
+    kchol = Cholesky(UpperTriangular(pc.Kxx))
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
     return nothing
 end
 

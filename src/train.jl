@@ -29,10 +29,3 @@ function train(method::FirstOrderOptimizer, md::AbstractModel, cost::AbstractLos
     end
     return optimize(Optim.only_fg!(fg!), hp0, method, options)
 end
-
-function update_model!(md::AbstractGPRModel, tc::TrainGPRCache)
-    md.params .= tc.hp
-    md.cache.kxx .= tc.kchol_base
-    md.cache.wt .= tc.α
-end
-

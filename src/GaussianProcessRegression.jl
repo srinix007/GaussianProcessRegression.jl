@@ -7,37 +7,47 @@ using LoopVectorization
 using Optim
 using LineSearches
 
-export AbstractKernel, AbstractDistanceMetric, Euclidean, SquaredExp, WhiteNoise,
-       ComposedKernel, kernel, kernel!, serial_kernel, distance, distance!, dim_hp, grad!,
-       grad, AbstractModel, AbstractModelCache, AbstractGPRModel, GPRModel, GPRModelCache,
-       predict, predict!, predict_mean, predict_mean!, predict_covar_impl!,
-       predict_mean_impl!, update!, posterior, AbstractProcess, AbstractDistribution,
-       NormalDistribution, sample, GaussianProcess, update_params!, update_cache!, loss,
-       MarginalLikelihood, alloc_kernels, kernels, kernels!, add_noise!, model_cache,
-       TrainGPRCache, train!, train, Cmap, SplitKernel, SplitDistanceA, SplitDistanceC,
-       hessian_fd, hessian_fd!, bfgs_quad!, bfgs_quad, bfgs_hessian
-
 const lz = LazyTensor
+
+export AbstractKernel, AbstractDistanceMetric
+export Euclidean, SquaredExp, WhiteNoise
+export kernel, kernel!, serial_kernel, distance, distance!, dim_hp
+export ComposedKernel, alloc_kernels, kernels, kernels!, add_noise!, rm_noise
+export grad!, grad
 
 include("covariance.jl")
 include("compose_covar.jl")
 include("deriv_covar.jl")
+
+export AbstractModel, AbstractGPRModel
+export GPRModel
+export update_params!
+
 include("models.jl")
+
+export AbstractProcess, AbstractDistribution
+export NormalDistribution, GaussianProcess
+export sample
+
 include("distributions.jl")
 
 export AbstractLoss, MarginalLikelihood
+export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache
+export MllGradCache, MllLossCache
+export loss, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!, train
 
 include("loss_grad.jl")
-
-export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache,
-       MllGradCache, MllLossCache
-
 include("./caches/cache.jl")
 include("./caches/cost.jl")
-
 include("cost.jl")
 
+export predict, predict!, predict_mean, predict_mean!
+
+include("./caches/predict.jl")
 include("predict.jl")
+
+export Cmap, SplitKernel, SplitDistanceA, SplitDistanceC
+
 include("split_kernel.jl")
 
 end

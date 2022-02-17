@@ -42,6 +42,8 @@ include("./caches/cost.jl")
 include("cost.jl")
 
 export predict, predict!, predict_mean, predict_mean!
+export AbstractPredictCache, GPRPredictCache
+export predict_cache
 
 include("./caches/predict.jl")
 include("predict.jl")

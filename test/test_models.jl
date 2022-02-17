@@ -12,22 +12,6 @@
         md = @inferred GPRModel(SquaredExp() + WhiteNoise(), x, y)
         @inferred predict_mean(md, xp)
         @inferred predict(md, xp)
-        @inferred update_params!(md, rand(size(md.params)...))
-    end
-
-    @testset "update_params" begin
-        md1 = GPRModel(SquaredExp() + WhiteNoise(), x, y)
-        kxx = kernel(md1.covar, md1.params, x)
-        kxx_chol = cholesky(kxx)
-        @test md1.cache.kxx_chol.U ≈ kxx_chol.U
-        @test md1.cache.kxx_chol.L ≈ kxx_chol.L
-        hp_new = md1.params .+ 1.0
-        update_params!(md1, hp_new)
-        @test md1.params ≈ hp_new
-        kxx = kernel(md1.covar, hp_new, x)
-        kxx_chol = cholesky(kxx)
-        @test md1.cache.kxx_chol.U ≈ kxx_chol.U
-        @test md1.cache.kxx_chol.L ≈ kxx_chol.L
     end
 
     @testset "Numerics" begin
@@ -41,7 +25,6 @@
 
         md3 = @inferred GPRModel(SquaredExp() + WhiteNoise(), x, y)
         md3.params[end] = 1e-5
-        GaussianProcessRegression.update_cache!(md3.cache, md3)
         @test predict_mean(md3, x) ≈ y rtol = 1e-3
 
         μₚ, Σₚ = predict(md3, x)
@@ -51,14 +34,16 @@
     @testset "Covar diagonal" begin
         md = GPRModel(SquaredExp() + WhiteNoise(), x, y)
         Σd = similar(xp, size(xp, 2))
-        Kxp = similar(xp, size(xp, 2), size(md.x, 2))
         yp, Σf = predict(md, xp)
-        predict!(yp, Diagonal(Σd), Kxp, md, xp)
+        pc = GPRPredictCache(md, size(xp, 2))
+        update_cache!(pc, md)
+        predict!(yp, Diagonal(Σd), md, xp, pc)
         @test diag(Σf) ≈ Σd atol = 1e-5
 
         md2 = GPRModel(SquaredExp(), x, y)
         yp, Σf = predict(md2, xp)
-        predict!(yp, Diagonal(Σd), Kxp, md2, xp)
+        update_cache!(pc, md2)
+        predict!(yp, Diagonal(Σd), md2, xp, pc)
         @test diag(Σf) ≈ Σd atol = 1e-5
     end
 end

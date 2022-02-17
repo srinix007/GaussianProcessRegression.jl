@@ -5,14 +5,16 @@ alloc_mean(x) = similar(x, size(x)[2:end]...)
 
 function predict_mean(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    pc = predict_cache(md)(md, xp)
+    pc = predict_cache(md)(md, size(xp, 2))
+    update_cache!(pc, md)
     predict_mean!(μₚ, md, xp, pc)
     return μₚ
 end
 
 function predict(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    pc = predict_cache(md)(md, xp)
+    pc = predict_cache(md)(md, size(xp, 2))
+    update_cache!(pc, md)
     Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
     predict!(μₚ, Σₚ, md, xp, pc)
     return μₚ, Σₚ
@@ -22,7 +24,7 @@ end
 
 function update_cache!(pc::AbstractPredictCache, md::AbstractGPRModel)
     kernel!(pc.Kxx, md.covar, md.params, md.x)
-    kchol = cholesky!(pc.Kxx)
+    kchol = cholesky!(Hermitian(pc.Kxx))
     ldiv!(pc.wt, kchol, md.y)
     return nothing
 end
@@ -41,8 +43,6 @@ function predict!(μₚ, Σₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCac
     predict_covar_impl!(Σₚ, pc.Kxp, kchol)
     return nothing
 end
-
-
 
 function predict!(μₚ, Σₚ::Diagonal, md::GPRModel{<:ComposedKernel}, xp,
                   pc::AbstractPredictCache)

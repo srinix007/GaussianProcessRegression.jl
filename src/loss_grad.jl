@@ -20,6 +20,13 @@ function loss(::Mahalanobis, y, K, yp)
     return tsum(lz(err) .* lz(Kerr))
 end
 
+function loss(::MarginalLikelihood, cov::AbstractKernel, hp, x, y)
+    K = kernel(cov, hp, x)
+    kchol = cholesky(K)
+    wt = kchol \ y
+    return loss(MarginalLikelihood(), kchol, y, wt)
+end
+
 function loss(::MarginalLikelihood, kchol::Cholesky, y, K⁻¹y)
     return 0.5 * (dot(y, K⁻¹y) + logdet(kchol) + size(kchol, 1) * log(2π))
 end

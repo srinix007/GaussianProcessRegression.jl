@@ -39,20 +39,24 @@ function update_cache!(tc::MllGradCache, hp, md::AbstractGPRModel)
     tc.kchol_base .= tc.kerns[1]
     kchol = cholesky!(Hermitian(tc.kchol_base))
     ldiv!(tc.α, kchol, md.y)
+    fill!(tc.K⁻¹, zero(eltype(tc.K⁻¹)))
+    tc.K⁻¹[diagind(tc.K⁻¹)] .= one(eltype(tc.K⁻¹))
     ldiv!(kchol, tc.K⁻¹)
     return nothing
 end
 
 function update_cache!(tc::MllGradCache, hp, md::AbstractGPRModel{<:ComposedKernel})
     tc.hp .= hp
-    kernels!(tc.kerns, md.covar, hp, md.x)
+    kernels!(tc.kerns, md.covar, tc.hp, md.x)
     tc.kchol_base .= tc.kerns[1]
     for t = 2:length(tc.kerns)
-        lz(tc.kchol_base) .+= lz(tc.kerns[t])
+        tc.kchol_base .+= tc.kerns[t]
     end
-    add_noise!(tc.kchol_base, md.covar, hp, md.x)
+    add_noise!(tc.kchol_base, md.covar, tc.hp, md.x)
     kchol = cholesky!(Hermitian(tc.kchol_base))
     ldiv!(tc.α, kchol, md.y)
+    fill!(tc.K⁻¹, zero(eltype(tc.K⁻¹)))
+    tc.K⁻¹[diagind(tc.K⁻¹)] .= one(eltype(tc.K⁻¹))
     ldiv!(kchol, tc.K⁻¹)
     return nothing
 end

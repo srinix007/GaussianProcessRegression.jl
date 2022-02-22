@@ -6,7 +6,7 @@ abstract type AbstractLossGradCache <: AbstractCostCache end
 struct MllLossCache{T,P<:AbstractArray{T},L<:AbstractArray{T},Y<:AbstractArray{T}} <:
        AbstractLossCache
     hp::P
-    kchols_base::L
+    kchol_base::L
     α::Y
 end
 

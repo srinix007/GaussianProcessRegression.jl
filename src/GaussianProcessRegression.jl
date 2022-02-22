@@ -34,12 +34,14 @@ include("distributions.jl")
 export AbstractLoss, MarginalLikelihood
 export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache
 export MllGradCache, MllLossCache
-export loss, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!, train
+export loss, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!
+export train
 
 include("loss_grad.jl")
 include("./caches/cache.jl")
 include("./caches/cost.jl")
 include("cost.jl")
+include("train.jl")
 
 export predict, predict!, predict_mean, predict_mean!
 export AbstractPredictCache, GPRPredictCache

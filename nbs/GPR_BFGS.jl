@@ -48,6 +48,9 @@ gpp = GaussianProcess(x->zero(eltype(x)), cov)
 	#res
 #end
 
+# ╔═╡ 6d7ab6ca-0b06-4a76-a1af-468bd858205b
+NelderMead <: Optim.ZerothOrderOptimizer
+
 # ╔═╡ 68d6be64-4d07-4736-a2c6-17e5b9eb0bbf
 @bind σ Slider(0.01:0.1:10)
 
@@ -84,23 +87,26 @@ md1 = GPRModel(cov, x, y);
 # ╔═╡ d784f186-c2c9-47fb-82a0-6c6daa5a55e5
 md1.params, loss(MarginalLikelihood(), md1)
 
-# ╔═╡ 1a9a0557-0923-4bdf-9c61-96be342c775a
-loss(MarginalLikelihood(), [2.0, 0.8], md1)
-
-# ╔═╡ 44f42249-ff30-4e98-abb8-c46fee500bfe
- grad(MarginalLikelihood(), [1.0, 0.1], md1)
+# ╔═╡ b5cc801c-b032-465a-9fc3-3df531459e91
+let
+	log_ls = -3.0:0.1:1.0
+	ls = exp.(log_ls)
+	σ = 1.0
+	lss = [loss(MarginalLikelihood(), [σ, l], md1) for l in ls]
+	grads = [grad(MarginalLikelihood(), [σ, l], md1)[2] for l in ls]
+	p = plot()
+	plot!(p, log_ls, lss)
+	plot!(p, log_ls, abs.(ls .* grads))
+end
 
 # ╔═╡ a02c352f-4fe8-438d-8bf8-eab8e95fe2a8
-res = train(md1, MarginalLikelihood(), method=NelderMead(), options = Optim.Options(g_tol=1e-2))
-
-# ╔═╡ caf6081e-6475-419e-bfe7-8912426e5e75
-hpmin = exp.(Optim.minimizer(res))
+hpmin, res = train(md1, MarginalLikelihood(); options = Optim.Options(g_tol=1e-2))
 
 # ╔═╡ f9e08302-28a9-4fc3-8bc3-296e0bc99d5c
 loss(MarginalLikelihood(), hpmin, md1)
 
 # ╔═╡ f70d0308-c817-40a2-8135-be1f506d5ed1
-md1_opt = GPRModel(cov, x, y, hpmin);
+md1_opt = GPRModel(cov, hpmin, x, y);
 
 # ╔═╡ 7c564648-1e35-4e89-b4b9-e9be46877382
 hpmin ≈ md1_opt.params
@@ -164,11 +170,10 @@ end
 # ╠═58c511e1-7339-4bde-a1bf-792a5082e593
 # ╠═59cd0a20-1d26-4672-8a6f-62dc2ac56ea0
 # ╠═d784f186-c2c9-47fb-82a0-6c6daa5a55e5
-# ╠═1a9a0557-0923-4bdf-9c61-96be342c775a
-# ╠═44f42249-ff30-4e98-abb8-c46fee500bfe
+# ╠═b5cc801c-b032-465a-9fc3-3df531459e91
 # ╠═ae4fd00b-2cde-428e-8534-17d7d25254d8
+# ╠═6d7ab6ca-0b06-4a76-a1af-468bd858205b
 # ╠═a02c352f-4fe8-438d-8bf8-eab8e95fe2a8
-# ╠═caf6081e-6475-419e-bfe7-8912426e5e75
 # ╠═f9e08302-28a9-4fc3-8bc3-296e0bc99d5c
 # ╠═f70d0308-c817-40a2-8135-be1f506d5ed1
 # ╠═7c564648-1e35-4e89-b4b9-e9be46877382

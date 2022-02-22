@@ -25,10 +25,44 @@ end
 
 # Non-Allocating API
 
+function loss(cost::AbstractLoss, hp, md::AbstractGPRModel, tc::AbstractCostCache)
+    update_cache!(tc, hp, md)
+    return loss(cost, md, tc)
+end
+
+function grad!(∇L, cost::AbstractLoss, hp, md::AbstractGPRModel, tc::AbstractCostCache)
+    update_cache!(tc, hp, md)
+    grad!(∇L, cost, md, tc)
+end
+
+function loss_grad!(cost::AbstractLoss, F, G, hp, md, tc::AbstractCostCache)
+    update_cache!(tc, hp, md)
+    if G !== nothing
+        grad!(G, cost, md, tc)
+    end
+    if F !== nothing
+        return loss(cost, md, tc)
+    end
+end
+
+function log_loss_grad!(cost::AbstractLoss, F, G, log_hp, md, tc::AbstractCostCache)
+    hp = exp.(log_hp)
+    update_cache!(tc, hp, md)
+    if G !== nothing
+        grad!(G, cost, md, tc)
+        G .*= hp
+    end
+    if F !== nothing
+        return loss(cost, md, tc)
+    end
+end
+
+# MLL Implementation
+
 function update_cache!(tc::MllLossCache, hp, md)
     tc.hp .= hp
-    kernel!(tc.kchols_base, md.covar, hp, md.x)
-    kchol = cholesky!(Hermitian(tc.kchols_base))
+    kernel!(tc.kchol_base, md.covar, hp, md.x)
+    kchol = cholesky!(Hermitian(tc.kchol_base))
     ldiv!(tc.α, kchol, md.y)
     return nothing
 end
@@ -61,14 +95,12 @@ function update_cache!(tc::MllGradCache, hp, md::AbstractGPRModel{<:ComposedKern
     return nothing
 end
 
-function loss(::MarginalLikelihood, hp, md::AbstractGPRModel, tc::MllLossCache)
-    update_cache!(tc, hp, md)
-    kchol = Cholesky(UpperTriangular(tc.kchols_base))
+function loss(::MarginalLikelihood, md::AbstractGPRModel, tc::AbstractCostCache)
+    kchol = Cholesky(UpperTriangular(tc.kchol_base))
     return loss(MarginalLikelihood(), kchol, md.y, tc.α)
 end
 
-function grad!(∇L, ::MarginalLikelihood, hp, md::AbstractGPRModel, tc::MllGradCache)
-    update_cache!(tc, hp, md)
+function grad!(∇L, ::MarginalLikelihood, md::AbstractGPRModel, tc::AbstractCostCache)
     kchol = Cholesky(UpperTriangular(tc.kchol_base))
     @inbounds for i in eachindex(∇L)
         ret = grad!(md.covar, tc.∇K, i, tc.hp, md.x, tc.kerns)
@@ -76,14 +108,4 @@ function grad!(∇L, ::MarginalLikelihood, hp, md::AbstractGPRModel, tc::MllGrad
         ∇L[i] = grad(MarginalLikelihood(), kchol, ∇K, tc.α, tc.K⁻¹, tc.tt)
     end
     return nothing
-end
-
-function loss_grad!(cost::AbstractLoss, F, G, hp, md, tc::AbstractCostCache)
-    update_cache!(tc, hp, md)
-    if G !== nothing
-        grad!(G, cost, hp, md, tc)
-    end
-    if F !== nothing
-        return loss(cost, hp, md, tc)
-    end
 end

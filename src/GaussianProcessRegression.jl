@@ -5,6 +5,7 @@ using GPUArrays
 using LinearAlgebra
 using LoopVectorization
 using Optim
+using Random
 using LineSearches
 
 const lz = LazyTensor
@@ -33,7 +34,7 @@ include("distributions.jl")
 
 export AbstractLoss, MarginalLikelihood
 export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache
-export MllGradCache, MllLossCache
+export MllGradCache, MllLossCache, Mahalanobis, MSE, ChiSq
 export loss, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!
 export train
 
@@ -43,12 +44,17 @@ include("./caches/cost.jl")
 include("cost.jl")
 include("train.jl")
 
+
 export predict, predict!, predict_mean, predict_mean!
 export AbstractPredictCache, GPRPredictCache
 export predict_cache
 
 include("./caches/predict.jl")
 include("predict.jl")
+
+export cv_batch, cv_step!, cv_step, kfoldcv
+
+include("crossval.jl")
 
 export Cmap, SplitKernel, SplitDistanceA, SplitDistanceC
 

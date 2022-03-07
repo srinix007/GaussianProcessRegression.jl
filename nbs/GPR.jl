@@ -130,32 +130,38 @@ let
 	p
 end
 
-# ╔═╡ dae0a2fa-b6ce-46ad-9d70-cadf94aadf0f
-yp2 = sample(gpp, xp, θ);
-
-# ╔═╡ 339766e9-dbab-4758-97ea-c24c23de506c
-yp_sum = yp .+ 2e-1 .* yp2;
-
-# ╔═╡ d0b96121-dad5-4384-a760-014f2632baa1
-let 
-	p = plot(xlabel=L"x", ylabel=L"f(x)", legend=:outertopright)
-	plot!(xp[1,:], yp, label=L"f(x)")
-	plot!(xp[1,:], yp2, label=L"\delta h(x)")
-	plot!(xp[1,:], yp_sum, label=L"f'(x)")
-	min1 = argmin(yp)
-	min2 = argmin(yp_sum)
-	xmin, ypmin = xp[1,min1], yp[min1]
-	xmin1, ypmin1 = xp[1,min2], yp_sum[min2]
-	scatter!(p, [xmin], [ypmin], color="blue", label=L"min(f(x))")
-	scatter!(p, [xmin1], [ypmin1], color="green", label=L"min(f'(x))")
-	vline!(p, [xmin], color="blue", label="")
-	vline!(p, [xmin1], color= "green", label="")
-	savefig(p, "Minima_shift.pdf")
-	p
-end
-
 # ╔═╡ 54b42d4c-6293-4a9a-9e5c-6178ee46af45
+loss(GaussianProcessRegression.ChiSq(),yp, ypred, Σpred) ./ n
 
+# ╔═╡ d3fb12b3-6957-4f41-bc62-9725c543c8a4
+loss(GaussianProcessRegression.Mahalanobis(), yp, ypred, Σpred) ./ n
+
+# ╔═╡ 850d7833-a663-4419-9953-00e128ca7ceb
+trn, tst = kfoldcv(n,10)
+
+# ╔═╡ 5fcc2b18-a47f-42ae-9b8c-743974c89443
+xtrn, ytrn = x[:,trn[1]], y[trn[1]]
+
+# ╔═╡ 7b8c1e01-4253-49ce-b79e-3b1ce05102fd
+xtst, ytst = x[:,tst[1]], y[tst[1]]
+
+# ╔═╡ 36e73ef1-793b-43a4-9a36-62de7e5392e1
+ytst
+
+# ╔═╡ e4d31bf0-e25d-477d-95d0-3f5e240363ac
+Kxx = kernel(SquaredExp(), hpmin, xtrn)
+
+# ╔═╡ f004da3d-6e9b-437c-b9d9-54354ff4467b
+cholesky(Kxx)
+
+# ╔═╡ df16a8e8-9c67-49ba-8d8a-a8f66d2dc3f3
+kernel!(Kxx, SquaredExp(), hpmin, xtrn)
+
+# ╔═╡ 42957845-11b3-4de2-bc24-267a2528c537
+cv_step(md1_opt, ChiSq(), xtrn, ytrn, xtst, ytst)
+
+# ╔═╡ 3d19b38a-9895-4f08-b859-3fd3429f5c4b
+cv_batch(md1_opt, GaussianProcessRegression.ChiSq(), x, y, kfoldcv(n, 10) )
 
 # ╔═╡ Cell order:
 # ╠═a09e1670-45de-11ec-0a4b-9d1ced6b0199
@@ -185,8 +191,15 @@ end
 # ╟─e920f7c2-5301-46e2-bb39-46dd5a5aa7ac
 # ╟─2679c2ac-d840-4242-921d-937772919fa6
 # ╠═6db587f9-d626-44bf-a591-106acc740ab6
-# ╠═eafb9f81-7dd3-4797-8267-9c0bbd55fbd6
-# ╠═dae0a2fa-b6ce-46ad-9d70-cadf94aadf0f
-# ╠═339766e9-dbab-4758-97ea-c24c23de506c
-# ╟─d0b96121-dad5-4384-a760-014f2632baa1
+# ╟─eafb9f81-7dd3-4797-8267-9c0bbd55fbd6
 # ╠═54b42d4c-6293-4a9a-9e5c-6178ee46af45
+# ╠═d3fb12b3-6957-4f41-bc62-9725c543c8a4
+# ╠═850d7833-a663-4419-9953-00e128ca7ceb
+# ╠═5fcc2b18-a47f-42ae-9b8c-743974c89443
+# ╠═7b8c1e01-4253-49ce-b79e-3b1ce05102fd
+# ╠═36e73ef1-793b-43a4-9a36-62de7e5392e1
+# ╠═e4d31bf0-e25d-477d-95d0-3f5e240363ac
+# ╠═f004da3d-6e9b-437c-b9d9-54354ff4467b
+# ╠═df16a8e8-9c67-49ba-8d8a-a8f66d2dc3f3
+# ╠═42957845-11b3-4de2-bc24-267a2528c537
+# ╠═3d19b38a-9895-4f08-b859-3fd3429f5c4b

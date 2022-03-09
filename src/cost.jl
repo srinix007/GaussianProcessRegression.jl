@@ -11,6 +11,8 @@ function loss(cost::AbstractLoss, hp, md::AbstractGPRModel)
     return loss(cost, hp, md, cost_cache)
 end
 
+grad(cost::AbstractLoss, md::AbstractGPRModel) = grad(cost, md.params, md)
+
 function grad(cost::AbstractLoss, hp, md::AbstractGPRModel)
     ∇L = similar(hp)
     grad!(∇L, cost, hp, md)

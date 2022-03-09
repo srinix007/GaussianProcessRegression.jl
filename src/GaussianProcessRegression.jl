@@ -35,7 +35,7 @@ include("distributions.jl")
 export AbstractLoss, MarginalLikelihood
 export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache
 export MllGradCache, MllLossCache, Mahalanobis, MSE, ChiSq
-export loss, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!
+export loss, grad, grad!, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!
 export train
 
 include("loss_grad.jl")
@@ -59,5 +59,12 @@ include("crossval.jl")
 export Cmap, SplitKernel, SplitDistanceA, SplitDistanceC
 
 include("split_kernel.jl")
+
+export AbstractUpdater, BFGSQuad
+export AbstractUpdateCache, BFGSQuadCache
+export update_sample!, hessian_fd!, hessian_fd, bfgs_quad, bfgs_quad!
+
+include("./caches/update_model.jl")
+include("update_model.jl")
 
 end

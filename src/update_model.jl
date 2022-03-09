@@ -1,52 +1,50 @@
-struct BFGSQuadCache{T,K<:AbstractArray{T},W<:AbstractArray{T}} <: AbstractModelCache
-    hp::K
-    J::K
-    hess::W
-    ϵJ::T
-    function BFGSQuadCache(hp, J, hess, ϵJ)
-        return new{eltype(J),typeof.((J, hess))...}(hp, J, hess, ϵJ)
-    end
-end
+abstract type AbstractUpdater end
+struct BFGSQuad <: AbstractUpdater end
 
-function BFGSQuadCache(md::AbstractGPRModel)
-    np = size(md.params, 1)
-    hp = similar(md.params)
-    J = similar(md.params)
-    hess = similar(J, np, np)
-    return BFGSQuadCache(hp, J, hess, 1e-4)
-end
+updater_cache(::BFGSQuad) = BFGSQuadCache
 
-function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLoss)
-    uc.J .= grad(cost, md)
-    jac = let cost = cost, md = md
-        x -> grad(cost, x, md)
-    end
-    hess = hessian_fd(jac, md.params)
-    return BFGSQuadCache(copy(md.params), J, hess, norm(J))
-end
+## High-level API
 
-function update_sample!(md::AbstractGPRModel, cost::AbstractLoss, δy)
-    tc = model_cache(md)(md)
-    uc = BFGSQuadCache(md)
+function update_sample!(md::AbstractGPRModel, δy, upd::AbstractUpdater, cost::AbstractLoss)
+    tc = grad_cache(cost)(md)
+    uc = updater_cache(upd)(md)
     update_cache!(uc, md, cost)
-    iters = update_sample!(md, uc, tc, cost, δy)
+    iters = update_sample!(md, δy, cost, uc, tc)
     return iters
 end
 
-function update_sample!(md::AbstractGPRModel, mc::BFGSQuadCache, tc::AbstractModelCache,
-                        cost::AbstractLoss, δy)
-    md.y .+= δy
-    update_cache!(tc, md, md.params)
-    function jac(x)
-        ret = similar(x)
-        let tc = tc
-            update_cache!(tc, x)
-            ret .= grad(cost, tc)
+## Low-level API
+
+function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLoss)
+    uc.hp .= md.params
+    tc = grad_cache(cost)(md)
+    grad!(uc.J, cost, md.params, md, tc)
+    log_jac = let md = md, cost = cost, tc = tc
+        function jj(log_x)
+            ret = similar(log_x)
+            x = exp.(log_x)
+            grad!(ret, cost, x, md, tc)
+            return ret .* x
         end
-        return ret
     end
-    iters = bfgs_quad!(mc.hp, mc.J, mc.hess, jac, mc.ϵJ)
-    update_params!(md, mc.hp)
+    hessian_fd!(uc.hess, log_jac, log.(md.params))
+    return nothing
+end
+
+function update_sample!(md::AbstractGPRModel, δy, cost::AbstractLoss,
+                        uc::AbstractUpdateCache, tc::AbstractGradCache)
+    md.y .+= δy
+    log_jac = let md = md, cost = cost, tc = tc
+        function jj(log_x)
+            ret = similar(log_x)
+            x = exp.(log_x)
+            grad!(ret, cost, x, md, tc)
+            return ret .* x
+        end
+    end
+    log_hp = log.(uc.hp)
+    iters = bfgs_quad!(log_hp, uc.J, uc.hess, log_jac, uc.ϵJ)
+    md.params .= exp.(log_hp)
     return iters
 end
 

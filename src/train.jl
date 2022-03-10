@@ -7,41 +7,50 @@ function init_params(::MarginalLikelihood, md::AbstractGPRModel)
 end
 
 function train(md::AbstractModel, cost::AbstractLoss, hp0 = init_params(cost, md);
-               method = ConjugateGradient(; linesearch = LineSearches.BackTracking()),
-               options = Optim.Options(), logscale = true)
-    if logscale == true
-        res = train_logscale(method, md, cost, hp0, options)
-        hpmin = exp.(Optim.minimizer(res))
-    else
-        res = train(method, md, cost, hp0, options)
-        hpmin = Optim.minimizer(res)
-    end
-    return hpmin, res
+               method = ConjugateGradient(), options = Optim.Options())
+    return train(islog(cost, md), method, md, cost, hp0, options)
 end
 
-function train(method::Optim.ZerothOrderOptimizer, md::AbstractModel, cost::AbstractLoss,
-               hp0, options)
+function train(::NoLogScale, method::Optim.ZerothOrderOptimizer, md::AbstractModel,
+               cost::AbstractLoss, hp0, options)
     tc = loss_cache(cost)(md)
     f = let tc = tc, cost = cost, md = md
         x -> loss(cost, x, md, tc)
     end
-    return optimize(f, hp0, method, options)
+    res = optimize(f, hp0, method, options)
+    hpmin = Optim.minimizer(res)
+    return hpmin, res
 end
 
-function train(method::Optim.FirstOrderOptimizer, md::AbstractModel, cost::AbstractLoss,
-               hp0, options)
+function train(::LogScale, method::Optim.ZerothOrderOptimizer, md::AbstractModel,
+               cost::AbstractLoss, hp0, options)
+    tc = loss_cache(cost)(md)
+    f = let tc = tc, cost = cost, md = md
+        x -> loss(cost, exp.(x), md, tc)
+    end
+    res = optimize(f, log.(hp0), method, options)
+    log_hpmin = Optim.minimizer(res)
+    return exp.(log_hpmin), res
+end
+
+function train(::NoLogScale, method::Optim.FirstOrderOptimizer, md::AbstractModel,
+               cost::AbstractLoss, hp0, options)
     tc = loss_grad_cache(cost)(md)
     fg! = let tc = tc, cost = cost, md = md
         (F, G, x) -> loss_grad!(cost, F, G, x, md, tc)
     end
-    return optimize(Optim.only_fg!(fg!), hp0, method, options)
+    res = optimize(Optim.only_fg!(fg!), hp0, method, options)
+    hpmin = Optim.minimizer(res)
+    return hpmin, res
 end
 
-function train_logscale(method::Optim.FirstOrderOptimizer, md::AbstractModel,
-                        cost::AbstractLoss, log_hp0, options)
+function train(::LogScale, method::Optim.FirstOrderOptimizer, md::AbstractModel,
+               cost::AbstractLoss, hp0, options)
     tc = loss_grad_cache(cost)(md)
     fg! = let tc = tc, cost = cost, md = md
         (F, G, x) -> log_loss_grad!(cost, F, G, x, md, tc)
     end
-    return optimize(Optim.only_fg!(fg!), log_hp0, method, options)
+    res = optimize(Optim.only_fg!(fg!), log.(hp0), method, options)
+    log_hpmin = Optim.minimizer(res)
+    return exp.(log_hpmin), res
 end

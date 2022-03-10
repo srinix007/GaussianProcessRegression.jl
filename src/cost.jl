@@ -1,6 +1,16 @@
+struct LogScale end
+struct NoLogScale end
+
+islog(::AbstractLoss, ::AbstractModel) = NoLogScale()
+islog(::MarginalLikelihood, ::AbstractGPRModel{<:SquaredExp}) = LogScale()
+function islog(::MarginalLikelihood, md::AbstractGPRModel{<:ComposedKernel})
+    return SquaredExp() in md.covar.kernels ? LogScale() : NoLogScale()
+end
+
 loss_cache(::MarginalLikelihood) = MllLossCache
 grad_cache(::MarginalLikelihood) = MllGradCache
 loss_grad_cache(::MarginalLikelihood) = MllGradCache
+
 
 # Allocating API
 

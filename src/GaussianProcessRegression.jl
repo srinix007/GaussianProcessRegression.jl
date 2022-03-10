@@ -35,7 +35,9 @@ include("distributions.jl")
 export AbstractLoss, MarginalLikelihood
 export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCache
 export MllGradCache, MllLossCache, Mahalanobis, MSE, ChiSq
+export LogScale, NoLogScale
 export loss, grad, grad!, loss_cache, loss_grad!, loss_grad_cache, grad_cache, update_cache!
+export islog
 export train
 
 include("loss_grad.jl")

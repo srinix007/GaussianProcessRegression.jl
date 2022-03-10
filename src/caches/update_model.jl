@@ -5,19 +5,16 @@ struct BFGSQuadCache{T,K<:AbstractArray{T},W<:AbstractArray{T}} <: AbstractUpdat
     hp::K
     J::K
     hess::W
-    ϵJ::T
 end
 
-function BFGSQuadCache(hp, J, hess, ϵJ)
-    return BFGSQuadCache{eltype(J),typeof.((J, hess))...}(hp, J, hess, ϵJ)
+function BFGSQuadCache(hp, J, hess)
+    return BFGSQuadCache{eltype(J),typeof.((J, hess))...}(hp, J, hess)
 end
 
-function BFGSQuadCache(md::AbstractGPRModel, ϵJ)
+function BFGSQuadCache(md::AbstractGPRModel)
     np = size(md.params, 1)
     hp = similar(md.params)
     J = similar(md.params)
     hess = similar(J, np, np)
-    return BFGSQuadCache(hp, J, hess, ϵJ)
+    return BFGSQuadCache(hp, J, hess)
 end
-
-BFGSQuadCache(md::AbstractGPRModel) = BFGSQuadCache(md, 1e-3)

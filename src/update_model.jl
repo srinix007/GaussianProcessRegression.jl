@@ -5,11 +5,12 @@ updater_cache(::BFGSQuad) = BFGSQuadCache
 
 ## High-level API
 
-function update_sample!(md::AbstractGPRModel, δy, upd::AbstractUpdater, cost::AbstractLoss)
+function update_sample!(md::AbstractGPRModel, δy, upd::AbstractUpdater, cost::AbstractLoss,
+                        ϵJ = 1e-3)
     tc = grad_cache(cost)(md)
     uc = updater_cache(upd)(md)
     update_cache!(uc, md, cost)
-    iters = update_sample!(md, δy, cost, uc, tc)
+    iters = update_sample!(md, δy, cost, uc, tc, ϵJ)
     return iters
 end
 
@@ -32,7 +33,7 @@ function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLo
 end
 
 function update_sample!(md::AbstractGPRModel, δy, cost::AbstractLoss,
-                        uc::AbstractUpdateCache, tc::AbstractGradCache)
+                        uc::AbstractUpdateCache, tc::AbstractGradCache, ϵJ = 1e-3)
     md.y .+= δy
     log_jac = let md = md, cost = cost, tc = tc
         function jj(log_x)
@@ -43,7 +44,8 @@ function update_sample!(md::AbstractGPRModel, δy, cost::AbstractLoss,
         end
     end
     log_hp = log.(uc.hp)
-    iters = bfgs_quad!(log_hp, uc.J, uc.hess, log_jac, uc.ϵJ)
+    log_J = uc.hp .* uc.J
+    iters = bfgs_quad!(log_hp, log_J, uc.hess, log_jac, ϵJ)
     md.params .= exp.(log_hp)
     return iters
 end

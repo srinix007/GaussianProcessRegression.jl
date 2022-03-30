@@ -4,7 +4,7 @@ abstract type AbstractUpdateCache <: AbstractCache end
 struct BFGSQuadCache{T,K<:AbstractArray{T},W<:AbstractArray{T}} <: AbstractUpdateCache
     hp::K
     J::K
-    hess::W
+    hess_inv::W
 end
 
 function BFGSQuadCache(hp, J, hess)

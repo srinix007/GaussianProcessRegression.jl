@@ -9,43 +9,40 @@ function update_sample!(md::AbstractGPRModel, δy, upd::AbstractUpdater, cost::A
                         ϵJ = 1e-3)
     tc = grad_cache(cost)(md)
     uc = updater_cache(upd)(md)
-    update_cache!(uc, md, cost)
     iters = update_sample!(md, δy, cost, uc, tc, ϵJ)
     return iters
 end
 
 ## Low-level API
 
-function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLoss)
-    uc.hp .= md.params
-    tc = grad_cache(cost)(md)
-    grad!(uc.J, cost, md.params, md, tc)
-    log_jac = let md = md, cost = cost, tc = tc
+function update_cache!(uc::BFGSQuadCache, md::AbstractGPRModel, cost::AbstractLoss,
+                       tc::AbstractGradCache)
+    uc.hp .= log.(md.params)
+    jac = let md = md, cost = cost, tc = tc
         function jj(log_x)
-            ret = similar(log_x)
-            x = exp.(log_x)
-            grad!(ret, cost, x, md, tc)
-            return ret .* x
+            G = similar(log_x)
+            log_loss_grad!(cost, nothing, G, log_x, md, tc)
+            return G
         end
     end
-    hessian_fd!(uc.hess, log_jac, log.(md.params))
+    uc.J .= jac(uc.hp)
+    hess = hessian_fd(jac, uc.hp)
+    uc.hess_inv .= inv(Hermitian(hess))
     return nothing
 end
 
 function update_sample!(md::AbstractGPRModel, δy, cost::AbstractLoss,
                         uc::AbstractUpdateCache, tc::AbstractGradCache, ϵJ = 1e-3)
     md.y .+= δy
-    log_jac = let md = md, cost = cost, tc = tc
-        function jj(log_x)
-            ret = similar(log_x)
-            x = exp.(log_x)
-            grad!(ret, cost, x, md, tc)
-            return ret .* x
+    update_cache!(uc, md, cost, tc)
+    jac = let md = md, cost = cost, tc = tc
+        function jj(x)
+            G = similar(x)
+            log_loss_grad!(cost, nothing, G, x, md, tc)
+            return G
         end
     end
-    log_hp = log.(uc.hp)
-    log_J = uc.hp .* uc.J
-    iters = bfgs_quad!(log_hp, log_J, uc.hess, log_jac, ϵJ)
+    iters = bfgs_quad!(uc.hp, uc.J, uc.hess_inv, jac, ϵJ)
     md.params .= exp.(log_hp)
     return iters
 end

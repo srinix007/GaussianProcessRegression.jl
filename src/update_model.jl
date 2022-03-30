@@ -43,7 +43,7 @@ function update_sample!(md::AbstractGPRModel, δy, cost::AbstractLoss,
         end
     end
     iters = bfgs_quad!(uc.hp, uc.J, uc.hess_inv, jac, ϵJ)
-    md.params .= exp.(log_hp)
+    md.params .= exp.(uc.hp)
     return iters
 end
 

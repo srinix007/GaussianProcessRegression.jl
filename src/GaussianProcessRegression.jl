@@ -65,6 +65,7 @@ include("split_kernel.jl")
 
 export AbstractUpdater, BFGSQuad
 export AbstractUpdateCache, BFGSQuadCache
+export bfgs_hessian
 export update_sample!, hessian_fd!, hessian_fd, bfgs_quad, bfgs_quad!
 
 include("./caches/update_model.jl")

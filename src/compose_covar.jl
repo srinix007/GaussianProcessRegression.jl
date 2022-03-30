@@ -2,6 +2,10 @@ struct ComposedKernel{A<:Tuple{Vararg{<:AbstractKernel}}} <: AbstractKernel
     kernels::A
 end
 
+function Base.show(io::IO, ::MIME"text/plain", cov::ComposedKernel)
+    println(cov.kernels)
+end
+
 function Base.:+(::T, ::S) where {T<:AbstractKernel,S<:AbstractKernel}
     return ComposedKernel((T(), S()))
 end

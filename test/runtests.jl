@@ -1,6 +1,7 @@
 using GaussianProcessRegression
 using Test
 using LinearAlgebra
+using Optim
 
 include("test_covariance.jl")
 include("test_models.jl")

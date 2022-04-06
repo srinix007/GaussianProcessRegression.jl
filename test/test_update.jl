@@ -46,11 +46,12 @@ end
 
 covars = (SquaredExp() + WhiteNoise(),)
 
-@testset "Model Update $dim $n $i" for dim = 3:6, n = 100:100:500, cov in covars, i = 1:2
+@testset "Model Update $dim $n $i" for dim = 5:9, n = 100:100:500, cov in covars, i = 1:2
     x = rand(dim, n)
     gp = GaussianProcess(x -> zero(eltype(x)), cov)
     hp = rand(0.1:0.1:5.0, dim_hp(cov, dim))
     hp[1] = 1.0
+    hp[end] = 1e-4
     y = sample(gp(x, hp))
     mdl = GPRModel(cov, x, y)
     hp0 = ones(length(hp))

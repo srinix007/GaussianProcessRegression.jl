@@ -7,6 +7,8 @@ using LoopVectorization
 using Optim
 using Random
 using LineSearches
+using SpecialFunctions
+using QuadGK
 
 const lz = LazyTensor
 
@@ -70,5 +72,10 @@ export update_sample!, hessian_fd!, hessian_fd, bfgs_quad, bfgs_quad!
 
 include("./caches/update_model.jl")
 include("update_model.jl")
+
+export gauss_integ, erf_integ
+export antideriv, antideriv!
+
+include("integrate.jl")
 
 end

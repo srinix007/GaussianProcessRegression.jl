@@ -73,9 +73,14 @@ export update_sample!, hessian_fd!, hessian_fd, bfgs_quad, bfgs_quad!
 include("./caches/update_model.jl")
 include("update_model.jl")
 
-export gauss_integ, erf_integ
-export antideriv, antideriv!
 
+export AbstractAntiDerivCache, AbstractIntegCache, AbstractWtCache
+export AntiDerivCache, WtCache
+export gauss_integ, erf_integ
+export antideriv, antideriv!, antideriv2, antideriv2!
+export integrate, integrate!
+
+include("./caches/integrate.jl")
 include("integrate.jl")
 
 end

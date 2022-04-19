@@ -38,3 +38,57 @@ function antideriv2(::SquaredExp, hp, a, b)
     end
     return integ2 * hp[1]
 end
+
+function antideriv2!(integ2, ::SquaredExp, hp, a, b)
+    integ2[1] = antideriv2(SquaredExp(), hp, a, b)
+    return nothing
+end
+
+## High level API
+
+integrate(md::AbstractGPRModel, a, b) = integrate(md, md.params, a, b)
+
+function integrate(md::AbstractGPRModel, hp, a, b)
+    wc = WtCache(md)
+    ac = AntiDerivCache(md)
+    return integrate!(md, hp, a, b, wc, ac)
+end
+
+## Low level API
+
+function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp)
+    kernel!(wc.kxx, md.covar, hp, md.x)
+    kchol = cholesky!(Hermitian(wc.kxx))
+    ldiv!(wc.wt, kchol, md.y)
+    return nothing
+end
+
+function update_cache!(ac::AbstractAntiDerivCache, md::AbstractGPRModel, hp, a, b)
+    antideriv!(ac.k1, SquaredExp(), md.x, hp, a, b)
+    ac.k2 = antideriv2(SquaredExp(), hp, a, b)
+    return nothing
+end
+
+function integrate!(md::AbstractGPRModel, hp, a, b, wc::AbstractWtCache,
+                    ac::AbstractAntiDerivCache)
+    update_cache!(wc, md, hp)
+    update_cache!(ac, md, hp, a, b)
+    return integrate!(wc, ac)
+end
+
+function integrate!(wc::AbstractWtCache, ac::AbstractAntiDerivCache)
+    μ_integ = mean_integ_impl(wc.wt, ac.k1)
+    kchol = Cholesky(UpperTriangular(wc.kxx))
+    σ_integ = var_integ_impl!(ac.k1, ac.k2, kchol, ac.tmp)
+    return μ_integ, σ_integ
+end
+
+function mean_integ_impl(wt, k1)
+    return dot(wt, k1)
+end
+
+function var_integ_impl!(k1, k2, kchol, tmp)
+    tmp .= k1
+    ldiv!(kchol.L, tmp)
+    return k2 - dot(tmp, tmp)
+end

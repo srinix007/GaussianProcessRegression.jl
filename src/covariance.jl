@@ -9,7 +9,7 @@ struct Euclidean <: AbstractDistanceMetric end
 
 @inline dim_hp(::SquaredExp, dim) = dim + 1
 
-@inline function kernel(::T, hp, x; dist = Euclidean(), ϵ = 1e-7) where {T<:AbstractKernel}
+@inline function kernel(::T, hp, x; dist = Euclidean(), ϵ = 1e-8) where {T<:AbstractKernel}
     kernel(T(), hp, x, x; dist = dist, ϵ = ϵ)
 end
 
@@ -18,7 +18,7 @@ end
     return kernel!(kern, T(), hp, x, x; dist = dist, ϵ = ϵ)
 end
 
-function kernel(::K, hp, x, xp; dist = Euclidean(), ϵ = 1e-7) where {K<:AbstractKernel}
+function kernel(::K, hp, x, xp; dist = Euclidean(), ϵ = 1e-8) where {K<:AbstractKernel}
     kern = similar(x, size(x)[2], size(xp)[2])
     threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
@@ -28,7 +28,7 @@ function kernel(::K, hp, x, xp; dist = Euclidean(), ϵ = 1e-7) where {K<:Abstrac
 end
 
 function kernel!(kern, ::K, hp, x, xp; dist = Euclidean(),
-                 ϵ = 1e-7) where {K<:AbstractKernel}
+                 ϵ = 1e-8) where {K<:AbstractKernel}
     threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
         kern[diagind(kern)] .+= ϵ

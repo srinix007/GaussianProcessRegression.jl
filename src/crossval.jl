@@ -23,7 +23,7 @@ function cv_batch(md::AbstractGPRModel, cost::AbstractLoss, x, y, cvset)
     Σp = similar(yp, ntst, ntst)
     lss = similar(y, length(trn))
     mdt = similar(md, md.params, rand(eltype(x), dim, ntrn), rand(eltype(y), ntrn))
-    pc = predict_cache(mdt)(mdt, ntst)
+    pc = predict_cache(mdt, xtst)(mdt, ntst)
     for i in eachindex(trn)
         @views xtst .= x[:, tst[i]]
         @views ytst .= y[tst[i]]
@@ -38,7 +38,7 @@ function cv_step(md::AbstractGPRModel, cost::AbstractLoss, xtr, ytr, xtst, ytst)
     yp = similar(ytst)
     Σp = similar(yp, size(yp, 1), size(yp, 1))
     mdt = similar(md, md.params, xtr, ytr)
-    pc = predict_cache(mdt)(mdt, size(xtst, 2))
+    pc = predict_cache(mdt, xtst)(mdt, xtst)
     return cv_step!(cost, mdt, xtst, ytst, pc, yp, Σp)
 end
 

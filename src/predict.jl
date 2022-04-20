@@ -1,11 +1,11 @@
-predict_cache(::GPRModel) = GPRPredictCache
+predict_cache(::GPRModel, ::AbstractArray) = GPRPredictCache
 
 alloc_kernel(cov::AbstractKernel, xp, x) = similar(xp, size(xp, 2), size(x, 2))
 alloc_mean(x) = similar(x, size(x)[2:end]...)
 
 function predict_mean(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    pc = predict_cache(md)(md, size(xp, 2))
+    pc = predict_cache(md, xp)(md, xp)
     update_cache!(pc, md)
     predict_mean!(μₚ, md, xp, pc)
     return μₚ
@@ -13,7 +13,7 @@ end
 
 function predict(md::AbstractGPRModel, xp)
     μₚ = alloc_mean(xp)
-    pc = predict_cache(md)(md, size(xp, 2))
+    pc = predict_cache(md, xp)(md, xp)
     update_cache!(pc, md)
     Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
     predict!(μₚ, Σₚ, md, xp, pc)

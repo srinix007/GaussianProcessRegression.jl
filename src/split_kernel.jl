@@ -16,37 +16,46 @@ end
 
 Base.show(io::IO, ::MIME"text/plain", cm::Cmap) = show(typeof(cm))
 
-struct SplitKernel{C<:Cmap,T,N,X<:AbstractArray{T},M<:AbstractArray{T,N}} <:
-       AbstractArray{T,N}
-    xp::C
-    x::X
+struct SplitKernel{T,N,M<:AbstractArray{T,N}} <: AbstractArray{T,N}
     A::M
     B::M
     C::M
-    function SplitKernel(c::Cmap, x::H, A::J, B::J,
-                         C::J) where {H<:AbstractArray,J<:AbstractArray}
-        new{typeof(c),eltype(A),ndims(A),H,J}(c, x, A, B, C)
+    function SplitKernel(A::J, B::J, C::J) where {J<:AbstractArray}
+        new{eltype(A),ndims(A),J}(A, B, C)
     end
+end
+
+function SplitKernel(x, ns, ne, nq, nkrn)
+    A = similar(x, ne, nq, nkrn)
+    B = similar(x, ne, ns, nkrn)
+    C = similar(x, ns, nq, nkrn)
+    return SplitKernel(A, B, C)
 end
 
 function SplitKernel(x, cm::Cmap, nkrn)
     s = size(x, 2)
     e = size(cm, 2)
     q = size(cm, 3)
-    A = similar(x, e, q, nkrn)
-    B = similar(x, e, s, nkrn)
-    C = similar(x, s, q, nkrn)
-    return SplitKernel(cm, x, A, B, C)
+    SplitKernel(x, s, e, q, nkrn)
+end
+
+function SplitKernel(cov::ComposedKernel, x, ne, nq)
+    nkrn = length([krn for krn in cov.kernels if krn isa SquaredExp])
+    ns = size(x, 2)
+    return SplitKernel(x, ns, ne, nq, nkrn)
 end
 
 function SplitKernel(cov::ComposedKernel, x, cm::Cmap)
-    nkrn = length([krn for krn in cov.kernels if krn isa SquaredExp])
-    return SplitKernel(x, cm, nkrn)
+    ne = size(cm, 2)
+    nq = size(cm, 3)
+    SplitKernel(cov, x, ne, nq)
 end
+
+SplitKernel(::SquaredExp, x, ne, nq) = SplitKernel(x, size(x, 2), ne, nq, 1)
 
 SplitKernel(::SquaredExp, x, cm::Cmap) = SplitKernel(x, cm, 1)
 
-Base.size(Kxp::SplitKernel) = (size(Kxp.A, 1), size(Kxp.A, 2), size(Kxp.x, 2),
+Base.size(Kxp::SplitKernel) = (size(Kxp.A, 1), size(Kxp.A, 2), size(Kxp.C, 1),
                                size(Kxp.A, 3))
 Base.size(Kxp::SplitKernel, i) = size(Kxp)[i]
 
@@ -137,6 +146,8 @@ function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, xp::Cmap, x)
     @views kernel!(Kxp.C[:, :, nkrn], SquaredExp(), hp, x, xp.xq; dist = SplitDistanceC())
     return nothing
 end
+
+predict_cache(::GPRModel, ::Cmap) = GPRSplitPredictCache
 
 alloc_kernel(cov::AbstractKernel, xp::Cmap, x) = SplitKernel(cov, x, xp)
 

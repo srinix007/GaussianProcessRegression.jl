@@ -62,8 +62,10 @@ export cv_batch, cv_step!, cv_step, kfoldcv
 include("crossval.jl")
 
 export Cmap, SplitKernel, SplitDistanceA, SplitDistanceC
+export GPRSplitPredictCache
 
 include("split_kernel.jl")
+include("./caches/split_kernel.jl")
 
 export AbstractUpdater, BFGSQuad
 export AbstractUpdateCache, BFGSQuadCache

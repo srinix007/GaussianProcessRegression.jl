@@ -17,10 +17,15 @@ function GPRPredictCache(md::AbstractGPRModel)
     return GPRPredictCache(Kxx, wt, Kxp)
 end
 
+
 function GPRPredictCache(md::AbstractGPRModel, nxp::Int)
     nx = size(md.x, 2)
     Kxx = similar(md.x, nx, nx)
     Kxp = similar(Kxx, nxp, nx)
     wt = similar(md.y)
     return GPRPredictCache(Kxx, wt, Kxp)
+end
+
+function GPRPredictCache(md::AbstractGPRModel, xp::AbstractArray{T,2}) where {T}
+    return GPRPredictCache(md, size(xp, 2))
 end

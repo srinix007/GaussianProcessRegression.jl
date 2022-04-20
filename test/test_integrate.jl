@@ -28,9 +28,32 @@ end
         b = a .+ 2.0 .* rand(dim)
         na = [CartesianIndex()]
         w = view(hp, 2:(dim+1))
-        integ = hp[1] .*
+        integ = hp[1]^2 .*
                 prod(gauss_integ.(xs[:, :], w[:, na], a[:, na], b[:, na]); dims = 1)
         integ_loop = antideriv(SquaredExp(), xs, hp, a, b)
         @test dropdims(integ; dims = 1) ≈ integ_loop
+    end
+end
+
+function gauss_leg_integ_3d(f, xg, wg)
+    integ = zero(eltype(x))
+    for i in eachindex(xg), j in eachindex(xg), k in eachindex(xg)
+        integ += wg[i] * wg[j] * wg[k] * f(xg[i], xg[j], xg[k])
+    end
+    return integ
+end
+
+@testset "GP Integration" begin
+    @testset "dim = 3 n = $n" for n = 100:100:500
+        x = rand(3, n)
+        y = dropdims(sin.(prod(x; dims = 1)) .^ 2; dims = 1)
+        mds = GPRModel(SquaredExp(), x, y)
+        hpmin, res = train(mds, MarginalLikelihood(); method = NewtonTrustRegion(),
+                           options = Optim.Options(; g_tol = 1e-3))
+        mds.params .= hpmin
+        μ, σ = integrate(mds, zeros(3), ones(3))
+        xg, wg = gauss(20, 0, 1)
+        gauss_integral = gauss_leg_integ_3d((x, y, z) -> sin(x * y * z)^2, xg, wg)
+        @test μ ≈ gauss_integral atol = 2σ
     end
 end

@@ -13,11 +13,12 @@ function antideriv(::SquaredExp, xs, hp, a, b)
 end
 
 function antideriv!(integ, ::SquaredExp, xs, hp, a, b)
+    fill!(integ, one(eltype(integ)))
     ns = size(xs, 2)
     σ = hp[1]
     nl = size(xs, 1)
     ls = view(hp, 2:(nl+1))
-    prefac = σ * (RT_PI_BY_2^nl) * prod(1 ./ ls)
+    prefac = σ^2 * (RT_PI_BY_2^nl) * prod(1 ./ ls)
     @inbounds for j = 1:ns
         @inbounds @simd for i = 1:nl
             l = ls[i]
@@ -36,7 +37,7 @@ function antideriv2(::SquaredExp, hp, a, b)
     @inbounds @simd for i in eachindex(ls)
         @inbounds integ2 *= erf_integ(ls[i], a[i], b[i])
     end
-    return integ2 * hp[1]
+    return integ2 * hp[1]^2
 end
 
 function antideriv2!(integ2, ::SquaredExp, hp, a, b)
@@ -65,7 +66,7 @@ end
 
 function update_cache!(ac::AbstractAntiDerivCache, md::AbstractGPRModel, hp, a, b)
     antideriv!(ac.k1, SquaredExp(), md.x, hp, a, b)
-    ac.k2 = antideriv2(SquaredExp(), hp, a, b)
+    antideriv2!(ac.k2, SquaredExp(), hp, a, b)
     return nothing
 end
 
@@ -79,8 +80,8 @@ end
 function integrate!(wc::AbstractWtCache, ac::AbstractAntiDerivCache)
     μ_integ = mean_integ_impl(wc.wt, ac.k1)
     kchol = Cholesky(UpperTriangular(wc.kxx))
-    σ_integ = var_integ_impl!(ac.k1, ac.k2, kchol, ac.tmp)
-    return μ_integ, σ_integ
+    σ2 = var_integ_impl!(ac.k1, ac.k2, kchol, wc.tmp)
+    return μ_integ, sqrt(σ2)
 end
 
 function mean_integ_impl(wt, k1)
@@ -90,5 +91,5 @@ end
 function var_integ_impl!(k1, k2, kchol, tmp)
     tmp .= k1
     ldiv!(kchol.L, tmp)
-    return k2 - dot(tmp, tmp)
+    return k2[1] - dot(tmp, tmp)
 end

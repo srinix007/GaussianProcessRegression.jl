@@ -1,6 +1,6 @@
 module GaussianProcessRegression
 
-using ParallelArrays
+using LazyTensors
 using GPUArrays
 using LinearAlgebra
 using LoopVectorization
@@ -49,7 +49,6 @@ include("./caches/cost.jl")
 include("cost.jl")
 include("train.jl")
 
-
 export predict, predict!, predict_mean, predict_mean!
 export AbstractPredictCache, GPRPredictCache
 export predict_cache
@@ -74,7 +73,6 @@ export update_sample!, hessian_fd!, hessian_fd, bfgs_quad, bfgs_quad!
 
 include("./caches/update_model.jl")
 include("update_model.jl")
-
 
 export AbstractAntiDerivCache, AbstractIntegCache, AbstractWtCache
 export AntiDerivCache, WtCache

@@ -8,5 +8,11 @@ function kernel!(kern::AbstractGPUArray, ::K, hp, x, xp; dist=Euclidean(),
 end
 
 function gpu_kernel_impl!(::K, kern::T, hp::P, x::T, xp::T, dist) where {T<:AbstractGPUArray,P<:AbstractGPUArray}
-    kernel_impl!(K(), kern, hp, x, xp, dist)
+    n = [CartesianIndex()]
+    ls = @view hp[2:end]
+    σ = hp[1:1]
+    xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
+    distance!(dist, kern, lz(xs), lz(xps))
+    kern .= (σ .^ 2) .* exp.(-1.0 .* kern)
+    return nothing
 end

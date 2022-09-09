@@ -19,6 +19,7 @@ export ComposedKernel, alloc_kernels, kernels, kernels!, add_noise!, rm_noise
 export grad!, grad
 
 include("covariance.jl")
+include("covar_gpu.jl")
 include("compose_covar.jl")
 include("deriv_covar.jl")
 

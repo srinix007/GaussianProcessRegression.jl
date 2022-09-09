@@ -11,7 +11,7 @@ function gpu_kernel_impl!(::SquaredExp, kern::T, hp::P, x::T, xp::T, dist) where
     n = [CartesianIndex()]
     ls = @view hp[2:end]
     σ = hp[1:1]
-    xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
+    xs, xps = (x[:, :] .* ls[:, n], xp[:, :] .* ls[:, n])
     distance!(dist, kern, lz(xs), lz(xps))
     kern .= (σ .^ 2) .* exp.(-1.0 .* kern)
     return nothing

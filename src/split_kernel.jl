@@ -56,7 +56,7 @@ SplitKernel(::SquaredExp, x, ne, nq) = SplitKernel(x, size(x, 2), ne, nq, 1)
 SplitKernel(::SquaredExp, x, cm::Cmap) = SplitKernel(x, cm, 1)
 
 Base.size(Kxp::SplitKernel) = (size(Kxp.A, 1), size(Kxp.A, 2), size(Kxp.C, 1),
-                               size(Kxp.A, 3))
+    size(Kxp.A, 3))
 Base.size(Kxp::SplitKernel, i) = size(Kxp)[i]
 
 function Base.getindex(Kxp::SplitKernel, ::Colon, ::Colon, ::Colon)
@@ -141,33 +141,8 @@ function kernel!(Kxp::SplitKernel, nkrn::Int, ::SquaredExp, hp, xp::Cmap, x)
     hps = copy(hp)
     hps[1] = 1.0
     @views kernel!(Kxp.A[:, :, nkrn], SquaredExp(), hps, xp.xe, xp.xq;
-                   dist = SplitDistanceA())
-    @views kernel!(Kxp.B[:, :, nkrn], SquaredExp(), hps, xp.xe, x; dist = Euclidean())
-    @views kernel!(Kxp.C[:, :, nkrn], SquaredExp(), hp, x, xp.xq; dist = SplitDistanceC())
-    return nothing
-end
-
-predict_cache(::GPRModel, ::Cmap) = GPRSplitPredictCache
-
-alloc_kernel(cov::AbstractKernel, xp::Cmap, x) = SplitKernel(cov, x, xp)
-
-predict_mean_impl!(μₚ, Kxp::SplitKernel, wt) = predict_split_mean!(μₚ, Kxp.A, Kxp.B, Kxp.C,
-                                                                   wt)
-
-function predict_split_mean!(μₚ, A, B, C, wt)
-    Cw = similar(C, size(C)[1:end-1]...)
-    BCw = similar(A, size(A)[1:end-1]...)
-    predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
-    return nothing
-end
-
-function predict_split_mean_impl!(μₚ, Cw, BCw, A, B, C, wt)
-    fill!(μₚ, zero(eltype(μₚ)))
-    for k in axes(A, 3)
-        @views mul!(Cw, Diagonal(wt), C[:, :, k])
-        @views mul!(BCw, B[:, :, k], Cw)
-        @views BCw .*= A[:, :, k]
-        μₚ .+= BCw
-    end
+        dist=SplitDistanceA())
+    @views kernel!(Kxp.B[:, :, nkrn], SquaredExp(), hps, xp.xe, x; dist=Euclidean())
+    @views kernel!(Kxp.C[:, :, nkrn], SquaredExp(), hp, x, xp.xq; dist=SplitDistanceC())
     return nothing
 end

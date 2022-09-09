@@ -39,7 +39,7 @@ export AbstractCache, AbstractCostCache, AbstractLossCache, AbstractLossGradCach
 export MllGradCache, MllLossCache, Mahalanobis, MSE, ChiSq
 export LogScale, NoLogScale
 export loss, grad, grad!, loss_cache, loss_grad!, log_loss_grad!, loss_grad_cache,
-       grad_cache, update_cache!
+    grad_cache, update_cache!
 export islog
 export train
 
@@ -65,6 +65,7 @@ export GPRSplitPredictCache
 
 include("split_kernel.jl")
 include("./caches/split_kernel.jl")
+include("split_predict.jl")
 
 export AbstractUpdater, BFGSQuad
 export AbstractUpdateCache, BFGSQuadCache

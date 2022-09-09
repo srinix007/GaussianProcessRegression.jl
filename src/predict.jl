@@ -11,11 +11,15 @@ function predict_mean(md::AbstractGPRModel, xp)
     return μₚ
 end
 
-function predict(md::AbstractGPRModel, xp)
+function predict(md::AbstractGPRModel, xp; diagonal_var=false)
     μₚ = alloc_mean(xp)
     pc = predict_cache(md, xp)(md, xp)
     update_cache!(pc, md)
-    Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
+    if diagonal_var == false
+        Σₚ = similar(md.x, size(xp, 2), size(xp, 2))
+    else
+        Σₚ = Diagonal(similar(μₚ, prod(size(μₚ))))
+    end
     predict!(μₚ, Σₚ, md, xp, pc)
     return μₚ, Σₚ
 end
@@ -31,13 +35,13 @@ end
 
 function predict_mean!(μₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCache)
     kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     return nothing
 end
 
 function predict!(μₚ, Σₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCache)
     kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     kernel!(Σₚ, md.covar, md.params, xp)
     kchol = Cholesky(UpperTriangular(pc.Kxx))
     predict_covar_impl!(Σₚ, pc.Kxp, kchol)
@@ -45,9 +49,9 @@ function predict!(μₚ, Σₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCac
 end
 
 function predict!(μₚ, Σₚ::Diagonal, md::GPRModel{<:ComposedKernel}, xp,
-                  pc::AbstractPredictCache)
+    pc::AbstractPredictCache)
     kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     dim = size(md.x, 1)
     hps = split(md.params, [dim_hp(x, dim) for x in md.covar.kernels])
     Σd = sum(hps[i][1]^2 for i = 1:length(md.covar.kernels))
@@ -59,14 +63,17 @@ end
 
 function predict!(μₚ, Σₚ::Diagonal, md::GPRModel, xp, pc::AbstractPredictCache)
     kernel!(pc.Kxp, md.covar, md.params, xp, md.x)
-    predict_mean_impl!(μₚ, pc.Kxp, pc.wt)
+    predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     fill!(Σₚ.diag, md.params[1]^2)
     kchol = Cholesky(UpperTriangular(pc.Kxx))
     predict_covar_impl!(Σₚ, pc.Kxp, kchol)
     return nothing
 end
 
-@inline predict_mean_impl!(μₚ, Kxp, wt) = mul!(μₚ, Kxp, wt)
+function predict_mean_impl!(μₚ, Kxp, wt, args...)
+    mul!(μₚ, Kxp, wt)
+    return nothing
+end
 
 """
     predict_covar_impl!(Σₚ, Kxp, kchol)

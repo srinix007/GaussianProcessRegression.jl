@@ -5,8 +5,9 @@ struct GPRSplitPredictCache{T,K<:AbstractArray{T},W<:AbstractArray{T},S<:SplitKe
     Kxp::S
     Cw::K
     BCw::K
-    function GPRSplitPredictCache(kxx, wt, Kxp, Cw, BCw)
-        return new{eltype(kxx),typeof.((kxx, wt, Kxp))...}(kxx, wt, Kxp, Cw, BCw)
+    Kxq::K
+    function GPRSplitPredictCache(kxx, wt, Kxp, Cw, BCw, Kxq)
+        return new{eltype(kxx),typeof.((kxx, wt, Kxp))...}(kxx, wt, Kxp, Cw, BCw, Kxq)
     end
 end
 
@@ -17,7 +18,8 @@ function GPRSplitPredictCache(md::AbstractGPRModel, ne, nq)
     Cw = similar(Kxp.C, size(Kxp.C)[1:end-1]...)
     BCw = similar(Kxp.A, size(Kxp.A)[1:end-1]...)
     wt = similar(md.y)
-    return GPRSplitPredictCache(Kxx, wt, Kxp, Cw, BCw)
+    Kxq = similar(Kxx, nq, nx)
+    return GPRSplitPredictCache(Kxx, wt, Kxp, Cw, BCw, Kxq)
 end
 
 function GPRSplitPredictCache(md::AbstractGPRModel, xp::Cmap)

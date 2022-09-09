@@ -44,7 +44,7 @@ function predict!(μₚ, Σₚ, md::AbstractGPRModel, xp, pc::AbstractPredictCac
     predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     kernel!(Σₚ, md.covar, md.params, xp)
     kchol = Cholesky(UpperTriangular(pc.Kxx))
-    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol, pc)
     return nothing
 end
 
@@ -57,7 +57,7 @@ function predict!(μₚ, Σₚ::Diagonal, md::GPRModel{<:ComposedKernel}, xp,
     Σd = sum(hps[i][1]^2 for i = 1:length(md.covar.kernels))
     fill!(Σₚ.diag, Σd)
     kchol = Cholesky(UpperTriangular(pc.Kxx))
-    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol, pc)
     return nothing
 end
 
@@ -66,7 +66,7 @@ function predict!(μₚ, Σₚ::Diagonal, md::GPRModel, xp, pc::AbstractPredictC
     predict_mean_impl!(μₚ, pc.Kxp, pc.wt, pc)
     fill!(Σₚ.diag, md.params[1]^2)
     kchol = Cholesky(UpperTriangular(pc.Kxx))
-    predict_covar_impl!(Σₚ, pc.Kxp, kchol)
+    predict_covar_impl!(Σₚ, pc.Kxp, kchol, pc)
     return nothing
 end
 
@@ -80,13 +80,13 @@ end
 
 Σₚ must be populated with K(xₚ, xₚ).
 """
-function predict_covar_impl!(Σₚ, Kxp, kchol)
+function predict_covar_impl!(Σₚ, Kxp, kchol, args...)
     rdiv!(Kxp, kchol.U)
     mul!(Σₚ, Kxp, Kxp', -1.0, 1.0)
     return nothing
 end
 
-function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol)
+function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol, args...)
     rdiv!(Kxp, kchol.U)
     Threads.@threads for i = 1:length(Σₚ.diag)
         @inbounds @views Σₚ.diag[i] -= dot(Kxp[i, :], Kxp[i, :])

@@ -81,10 +81,21 @@ function Base.getindex(Kxp::SplitKernel, e::Int, q::Int, ::Colon)
     return KK
 end
 
+function Base.getindex(Kxp::SplitKernel, e::Int, ::Colon, ::Colon)
+    qr = 1:size(Kxp, 2)
+    sr = 1:size(Kxp, 3)
+    nr = 1:size(Kxp, 4)
+    KK = zeros(eltype(Kxp.A), length(qr), length(sr))
+    @turbo for n in nr, q in qr, s in sr
+        KK[q, s] += Kxp.A[e, q, n] * Kxp.B[e, s, n] * Kxp.C[s, q, n]
+    end
+    return KK
+end
+
 function Base.getindex(Kxp::SplitKernel, e::Int, q::Int, s::Int)
     nr = 1:size(Kxp, 4)
     kk = zero(eltype(Kxp.A))
-    @inbounds for n in nr
+    @inbounds @simd for n in nr
         kk += Kxp.A[e, q, n] * Kxp.B[e, s, n] * Kxp.C[s, q, n]
     end
     return kk

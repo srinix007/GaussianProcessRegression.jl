@@ -1,5 +1,5 @@
 covs = (SquaredExp(), SquaredExp() + WhiteNoise(), SquaredExp() + SquaredExp(),
-        SquaredExp() + SquaredExp() + WhiteNoise())
+    SquaredExp() + SquaredExp() + WhiteNoise())
 
 @testset verbose = true "Split Kernel" for dim in (2, 3, 5), n in (100, 200, 26)
     x = rand(dim, n)
@@ -18,7 +18,7 @@ covs = (SquaredExp(), SquaredExp() + WhiteNoise(), SquaredExp() + SquaredExp(),
             @test xeq[i, :] ≈ reduce(hcat, [xe[:, i] .+ xq[:, j] for j = 1:size(xq, 2)])
         end
         @test xeq[:, :] ≈ reduce(hcat,
-                                 [xe[:, i] .+ xq[:, j] for j = 1:size(xq, 2) for i = 1:size(xe, 2)])
+            [xe[:, i] .+ xq[:, j] for j = 1:size(xq, 2) for i = 1:size(xe, 2)])
     end
 
     @testset "SplitDistance" begin
@@ -59,14 +59,15 @@ end
         xq = rand(dim, q)
         xeq = Cmap(+, xe, xq)
         xp = xeq[:, :]
-        y = dropdims(sin.(sum(x; dims = 1)) .^ 2; dims = 1)
+        y = dropdims(sin.(sum(x; dims=1)) .^ 2; dims=1)
         #yp = dropdims(sin.(sum(xp; dims = 1)) .^ 2; dims = 1)
         md = GPRModel(cov, x, y)
 
         @testset "Mean" begin
-            yp = predict_mean(md, xp)
-            yps = predict_mean(md, xeq)
+            yp, varp = predict(md, xp, diagonal_var=true)
+            yps, varps = predict(md, xeq, diagonal_var=true)
             @test reshape(yps, :) ≈ yp
+            @test varp.diag ≈ varp.diag
         end
     end
 end

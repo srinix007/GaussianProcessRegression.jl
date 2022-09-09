@@ -86,7 +86,7 @@ function kernel_impl!(::SquaredExp, kern, hp, x, xp, dist=Euclidean(), ix=last(a
     xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
     kernv = view(kern, ix, ixp)
     distance!(dist, kernv, lz(xs), lz(xps))
-    kernv .= σ^2 .* exp.(-1.0 .* kernv)
+    kernv .= (σ .^ 2) .* exp.(-1.0 .* kernv)
     return nothing
 end
 

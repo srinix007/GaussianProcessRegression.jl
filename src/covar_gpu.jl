@@ -7,7 +7,7 @@ function kernel!(kern::AbstractGPUArray, ::K, hp, x, xp; dist=Euclidean(),
     return nothing
 end
 
-function gpu_kernel_impl!(::K, kern::T, hp::P, x::T, xp::T, dist) where {T<:AbstractGPUArray,P<:AbstractGPUArray}
+function gpu_kernel_impl!(::SquaredExp, kern::T, hp::P, x::T, xp::T, dist) where {T<:AbstractGPUArray,P<:AbstractGPUArray}
     n = [CartesianIndex()]
     ls = @view hp[2:end]
     σ = hp[1:1]

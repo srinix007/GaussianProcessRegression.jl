@@ -62,12 +62,17 @@ end
         y = dropdims(sin.(sum(x; dims=1)) .^ 2; dims=1)
         #yp = dropdims(sin.(sum(xp; dims = 1)) .^ 2; dims = 1)
         md = GPRModel(cov, x, y)
-
+        yp, varp = predict(md, xp, diagonal_var=true)
+        yps, varps = predict(md, xeq, diagonal_var=true)
         @testset "Mean" begin
-            yp, varp = predict(md, xp, diagonal_var=true)
-            yps, varps = predict(md, xeq, diagonal_var=true)
             @test reshape(yps, :) ≈ yp
-            @test varp.diag ≈ varp.diag
+        end
+        xqe = Cmap(+, xq, xe)
+        xpt = xqe[:, :]
+        ypt, varpt = predict(md, xpt, diagonal_var=true)
+        @testset "Variance" begin
+            @test varps.diag[1:(3*q)] ≈ varpt.diag[1:(3*q)] rtol = 1e-5
+            @test !(isapprox(varps.diag[1:(3*q+1)], varpt.diag[1:(3*q+1)], rtol=1e-5))
         end
     end
 end

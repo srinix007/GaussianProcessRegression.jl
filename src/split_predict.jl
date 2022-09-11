@@ -18,6 +18,7 @@ function predict_split_mean_impl!(μₚ, A, B, C, wt, Cw, BCw)
     return nothing
 end
 
+#=
 function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRSplitPredictCache)
     sr = 1:size(SKxp, 3)
     er = 1:size(SKxp, 1)
@@ -30,6 +31,23 @@ function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRS
         rn = (1+(e-1)*nq):(e*nq)
         @inbounds @views Σq = Diagonal(Σₚ.diag[rn])
         predict_covar_impl!(Σq, pc.Kxq, kchol)
+    end
+    return nothing
+end
+=#
+
+function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRSplitPredictCache; er=1:3)
+    na = [CartesianIndex()]
+    nr = 1:size(SKxp, 4)
+    nq = size(SKxp, 2)
+    for e in er
+        fill!(pc.Kxq, zero(eltype(pc.Kxq)))
+        for n in nr
+            pc.Kxq .+= SKxp.A[e, :, na, n] .* SKxp.B[e, na, :, n] .* SKxp.C[:, :, n]'
+        end
+        rn = (1+(e-1)*nq):(e*nq)
+        Σq = Diagonal(view(Σₚ.diag, rn))
+        predict_covar_impl!(Σq, pc.Kxq, kchol, pc)
     end
     return nothing
 end

@@ -86,9 +86,18 @@ function predict_covar_impl!(Σₚ, Kxp, kchol, args...)
     return nothing
 end
 
+#=
 function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol, args...)
     rdiv!(Kxp, kchol.U)
     Threads.@threads for i = 1:length(Σₚ.diag)
         @inbounds @views Σₚ.diag[i] -= dot(Kxp[i, :], Kxp[i, :])
     end
+end
+=#
+
+function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol, args...)
+    rdiv!(Kxp, kchol.U)
+    Kxp .*= Kxp .* -1.0
+    sum!(view(Σₚ.diag, :, 1), Kxp; init=false)
+    return nothing
 end

@@ -36,11 +36,11 @@ function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRS
 end
 =#
 
-function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRSplitPredictCache; er=1:3)
+function predict_covar_impl!(Σₚ::Diagonal, SKxp::SplitKernel, kchol, pc::GPRSplitPredictCache)
     na = [CartesianIndex()]
     nr = 1:size(SKxp, 4)
     nq = size(SKxp, 2)
-    for e in er
+    for e in pc.var_range
         fill!(pc.Kxq, zero(eltype(pc.Kxq)))
         for n in nr
             pc.Kxq .+= SKxp.A[e, :, na, n] .* SKxp.B[e, na, :, n] .* SKxp.C[:, :, n]'

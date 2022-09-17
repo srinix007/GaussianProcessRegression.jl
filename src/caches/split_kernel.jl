@@ -6,8 +6,9 @@ struct GPRSplitPredictCache{T,K<:AbstractArray{T},W<:AbstractArray{T},S<:SplitKe
     Cw::K
     BCw::K
     Kxq::K
-    function GPRSplitPredictCache(kxx, wt, Kxp, Cw, BCw, Kxq)
-        return new{eltype(kxx),typeof.((kxx, wt, Kxp))...}(kxx, wt, Kxp, Cw, BCw, Kxq)
+    var_range::UnitRange{Int64}
+    function GPRSplitPredictCache(kxx, wt, Kxp, Cw, BCw, Kxq, var_range=1:3)
+        return new{eltype(kxx),typeof.((kxx, wt, Kxp))...}(kxx, wt, Kxp, Cw, BCw, Kxq, var_range)
     end
 end
 

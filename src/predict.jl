@@ -91,6 +91,7 @@ function predict_covar_impl!(Σₚ::Diagonal, Kxp, kchol, args...)
     Threads.@threads for i = 1:length(Σₚ.diag)
         @inbounds @views Σₚ.diag[i] -= dot(Kxp[i, :], Kxp[i, :])
     end
+    return nothing
 end
 
 function predict_covar_impl!(Σₚ::Diagonal, Kxp::AbstractGPUArray, kchol, args...)

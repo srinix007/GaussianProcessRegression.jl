@@ -47,20 +47,36 @@ end
 
 ## High level API
 
-integrate(md::AbstractGPRModel, a, b) = integrate(md, md.params, a, b)
+function integrate(md::AbstractGPRModel, a, b; sample_noise=nothing)
+    integrate(md, md.params, a, b; sample_noise=sample_noise)
+end
 
-function integrate(md::AbstractGPRModel, hp, a, b)
+function integrate(md::AbstractGPRModel, hp, a, b; sample_noise=nothing)
     wc = WtCache(md)
     ac = AntiDerivCache(md)
-    return integrate!(md, hp, a, b, wc, ac)
+    Iout = similar(md.y, size(md.y, 2))
+    var_Iout = similar(Iout)
+    integrate!(Iout, var_Iout, md, hp, a, b, sample_noise, wc, ac)
+    return Iout, var_Iout
 end
 
 ## Low level API
 
-function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp)
+function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp, ::Nothing)
     kernel!(wc.kxx, md.covar, hp, md.x)
     kchol = cholesky!(Hermitian(wc.kxx))
     ldiv!(wc.wt, kchol, md.y)
+    return nothing
+end
+
+function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp, sample_noise)
+    kernel!(wc.kxx, md.covar, hp, md.x)
+    kchol = cholesky!(Hermitian(wc.kxx))
+    # K⁻¹y + K⁻¹ Σ K⁻¹y = W + K⁻¹ Σ W = W + K⁻¹ (Σ ⊗ W)
+    ldiv!(wc.wt, kchol, md.y)         # W = K⁻¹y
+    wc.tmp .= sample_noise' .* wc.wt  # T = Σ ⊗ W
+    ldiv!(kchol, wc.tmp)              # T = K⁻¹T
+    wc.wt .+= wc.tmp                  # W = W + T 
     return nothing
 end
 
@@ -70,26 +86,42 @@ function update_cache!(ac::AbstractAntiDerivCache, md::AbstractGPRModel, hp, a, 
     return nothing
 end
 
-function integrate!(md::AbstractGPRModel, hp, a, b, wc::AbstractWtCache,
-                    ac::AbstractAntiDerivCache)
-    update_cache!(wc, md, hp)
+function integrate!(Iout, var_Iout, md::AbstractGPRModel, hp, a, b, sample_noise, wc::AbstractWtCache,
+    ac::AbstractAntiDerivCache)
+    update_cache!(wc, md, hp, sample_noise)
     update_cache!(ac, md, hp, a, b)
-    return integrate!(wc, ac)
+    integrate!(Iout, var_Iout, sample_noise, wc, ac)
+    return nothing
 end
 
-function integrate!(wc::AbstractWtCache, ac::AbstractAntiDerivCache)
-    μ_integ = mean_integ_impl(wc.wt, ac.k1)
+function integrate!(Iout, var_Iout, sample_noise, wc::AbstractWtCache, ac::AbstractAntiDerivCache)
+    mean_integ_impl(Iout, wc.wt, ac.k1)
     kchol = Cholesky(UpperTriangular(wc.kxx))
-    σ2 = var_integ_impl!(ac.k1, ac.k2, kchol, wc.tmp)
-    return μ_integ, sqrt(σ2)
+    var_integ_impl!(var_Iout, sample_noise, ac.k1, ac.k2, kchol, wc.tmp)
+    return nothing
 end
 
-function mean_integ_impl(wt, k1)
-    return dot(wt, k1)
+function mean_integ_impl(Iout, wt, k1)
+    mul!(Iout, wt', k1)
+    return nothing
 end
 
-function var_integ_impl!(k1, k2, kchol, tmp)
-    tmp .= k1
-    ldiv!(kchol.L, tmp)
-    return k2[1] - dot(tmp, tmp)
+function var_integ_impl!(var_Iout, ::Nothing, k1, k2, kchol, tmp)
+    @views tt = tmp[:, 1]
+    tt .= k1
+    ldiv!(kchol.L, tt)
+    var_Iout[1] = k2[1] - dot(tt, tt)
+    return nothing
+end
+
+function var_integ_impl!(var_Iout, sample_noise, k1, k2, kchol, tmp)
+    @views tt = tmp[:, 1]
+    var_integ_impl!(var_Iout, nothing, k1, k2, kchol, tt)
+    t1 = var_Iout[1]
+    tt .= k1
+    ldiv!(kchol, tt)
+    tt .*= tt
+    mul!(var_Iout, sample_noise, tt)
+    var_Iout .= t1 .- var_Iout
+    return nothing
 end

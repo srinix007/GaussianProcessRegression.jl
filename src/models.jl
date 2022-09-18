@@ -1,7 +1,7 @@
 abstract type AbstractModel end
 
 abstract type AbstractGPRModel{K<:AbstractKernel,T,P<:AbstractArray{T},
-                               X<:AbstractArray{T}} <: AbstractModel end
+    X<:AbstractArray{T}} <: AbstractModel end
 
 function Base.show(io::IO, ::MIME"text/plain", md::AbstractGPRModel)
     println(typeof(md))
@@ -15,7 +15,7 @@ function Base.show(io::IO, ::MIME"text/plain", md::AbstractGPRModel)
 end
 
 struct GPRModel{K<:AbstractKernel,T,P<:AbstractArray{T},X<:AbstractArray{T,2},
-                Y<:AbstractArray{T,1}} <: AbstractGPRModel{K,T,P,X}
+    Y<:AbstractArray{T}} <: AbstractGPRModel{K,T,P,X}
     covar::K
     params::P
     x::X
@@ -24,7 +24,7 @@ end
 
 function GPRModel(cov, hp, x, y)
     size(hp, 1) == dim_hp(cov, size(x, 1)) || error("Parameter size mismatch.")
-    size(x, 2) == size(y, 1) || error("x and y size mismatch.")
+    last(size(x)) == first(size(y)) || error("x and y size mismatch.")
     return GPRModel{typeof(cov),eltype(x),typeof.((hp, x, y))...}(cov, hp, x, y)
 end
 

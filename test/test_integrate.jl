@@ -8,12 +8,12 @@ gaussian(x, xs, w) = exp(-w^2 * (x - xs)^2)
         a = -3.0 + 6 * rand()
         b = -3.0 + 6 * rand()
         @testset "Gaussian integral" begin
-            integ_quad = quadgk(x -> gaussian(x, xs, w), a, b; rtol = 1e-5)[1]
+            integ_quad = quadgk(x -> gaussian(x, xs, w), a, b; rtol=1e-5)[1]
             integ_adrv = gauss_integ(xs, w, a, b)
             @test integ_quad ≈ integ_adrv
         end
         @testset "Erf integral" begin
-            integ2_quad = quadgk(x -> gauss_integ(x, w, a, b), a, b; rtol = 1e-5)[1]
+            integ2_quad = quadgk(x -> gauss_integ(x, w, a, b), a, b; rtol=1e-5)[1]
             integ2_adrv = erf_integ(w, a, b)
             @test integ2_quad ≈ integ2_adrv
         end
@@ -29,31 +29,67 @@ end
         na = [CartesianIndex()]
         w = view(hp, 2:(dim+1))
         integ = hp[1]^2 .*
-                prod(gauss_integ.(xs[:, :], w[:, na], a[:, na], b[:, na]); dims = 1)
+                prod(gauss_integ.(xs[:, :], w[:, na], a[:, na], b[:, na]); dims=1)
         integ_loop = antideriv(SquaredExp(), xs, hp, a, b)
-        @test dropdims(integ; dims = 1) ≈ integ_loop
+        @test dropdims(integ; dims=1) ≈ integ_loop
     end
 end
 
 function gauss_leg_integ_3d(f, xg, wg)
-    integ = zero(eltype(x))
+    integ = zero(eltype(xg))
     for i in eachindex(xg), j in eachindex(xg), k in eachindex(xg)
         integ += wg[i] * wg[j] * wg[k] * f(xg[i], xg[j], xg[k])
     end
     return integ
 end
 
+@testset "Integration with sample noise" begin
+    @testset "Zero test dim=$dim, n=$n, k=$k" for dim in 6:6, n in 100:20:400, k in 100:50:500
+        x = rand(dim, n)
+        y = rand(n, k)
+        model = GPRModel(SquaredExp(), x, y)
+        a, b = (zeros(dim), ones(dim))
+        μ, σ = integrate(model, a, b, sample_noise=nothing)
+        zero_noise = zeros(k, n)
+        μ0, σ0 = integrate(model, a, b, sample_noise=zero_noise)
+        @test μ ≈ μ0
+        @test σ[1] ≈ σ0[2] atol = 1e-7
+        @test σ0[2:end] ≈ zeros(k - 1) atol = 1e-5
+    end
+
+    @testset "Shermann Morrison dim=$dim, n=$n, k=$k" for dim in 6:6, n in 100:20:100, k in 200:50:200
+        x = rand(dim, n)
+        y = rand(n, k)
+        model = GPRModel(SquaredExp(), x, y)
+        a, b = (zeros(dim), ones(dim))
+        noise = 1e-5 .* rand(k, n)
+        μ, σ = integrate(model, a, b, sample_noise=noise)
+        kxx = kernel(SquaredExp(), model.params, x)
+        ac = AntiDerivCache(model)
+        tmp = similar(ac.k1)
+        σ_exact = similar(y, k)
+        ret = similar(y, 1)
+        for l in 1:k
+            @views kxx_noise = kxx .+ Diagonal(noise[l, :])
+            kchol = cholesky(kxx_noise)
+            GaussianProcessRegression.var_integ_impl!(ret, nothing, ac.k1, ac.k2, kchol, tmp)
+            σ_exact[l] = ret[1]
+        end
+        @test σ ≈ σ_exact atol = 1e-4
+    end
+end
+
 @testset "GP Integration" begin
     @testset "dim = 3 n = $n" for n = 100:100:500
         x = rand(3, n)
-        y = dropdims(sin.(prod(x; dims = 1)) .^ 2; dims = 1)
+        y = dropdims(sin.(prod(x; dims=1)) .^ 2; dims=1)
         mds = GPRModel(SquaredExp(), x, y)
-        hpmin, res = train(mds, MarginalLikelihood(); method = NewtonTrustRegion(),
-                           options = Optim.Options(; g_tol = 1e-3))
+        hpmin, res = train(mds, MarginalLikelihood(); method=NewtonTrustRegion(),
+            options=Optim.Options(; g_tol=1e-3))
         mds.params .= hpmin
         μ, σ = integrate(mds, zeros(3), ones(3))
         xg, wg = gauss(20, 0, 1)
         gauss_integral = gauss_leg_integ_3d((x, y, z) -> sin(x * y * z)^2, xg, wg)
-        @test μ ≈ gauss_integral atol = 2σ
+        @test μ[1] ≈ gauss_integral atol = 3sqrt(σ[1])
     end
 end

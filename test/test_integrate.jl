@@ -15,7 +15,7 @@ gaussian(x, xs, w) = exp(-w^2 * (x - xs)^2)
         @testset "Erf integral" begin
             integ2_quad = quadgk(x -> gauss_integ(x, w, a, b), a, b; rtol=1e-5)[1]
             integ2_adrv = erf_integ(w, a, b)
-            @test integ2_quad ≈ integ2_adrv
+            @test integ2_quad ≈ integ2_adrv atol = 1e-5
         end
     end
 end
@@ -43,6 +43,76 @@ function gauss_leg_integ_3d(f, xg, wg)
     return integ
 end
 
+@testset "Inverse diagonal update" begin
+    for n in (100, 200, 300)
+        L = LowerTriangular(rand(n, n))
+        A = Hermitian(L * L' + 1e-7 * I)
+        ϵ = 1e-5
+        B = Diagonal(ϵ .* ones(n))
+        y = rand(n)
+        ABy = similar(y)
+        ABy_exact = inv(A + B) * y
+        tmp = similar(y)
+        λ, P = eigen(A)
+        GaussianProcessRegression.inverse_diagonal_update!(ABy, λ, P, ϵ, y, tmp)
+        @test ABy ≈ ABy_exact rtol = 1e-6
+    end
+end
+
+@testset "Inverse diagonal update vector noise" begin
+    for n in (100, 200, 300), ne in (100, 200, 300)
+        L = LowerTriangular(rand(n, n))
+        A = Hermitian(L * L' + 1e-7 * I)
+        ϵ = 1e-5 .* rand(ne)
+        y = rand(n, ne)
+        ABy = similar(y)
+        ABy_exact = similar(y)
+        tmp = similar(y)
+        for i in 1:ne
+            B = Diagonal(ϵ[i] .* ones(n))
+            ABy_exact[:, i] .= inv(A + B) * y[:, i]
+        end
+        λ, P = eigen(A)
+        GaussianProcessRegression.inverse_diagonal_update!(ABy, λ, P, ϵ, y, tmp)
+        @test ABy ≈ ABy_exact rtol = 1e-5
+    end
+end
+
+@testset "Inverse diagonal update quadratic" begin
+    for n in (100, 200, 300)
+        L = LowerTriangular(rand(n, n))
+        A = Hermitian(L * L' + 1e-7 * I)
+        ϵ = 1e-5
+        B = Diagonal(ϵ .* ones(n))
+        y = rand(n)
+        yABy_exact = y' * inv(A + B) * y
+        tmp = similar(y)
+        λ, P = eigen(A)
+        yABy = GaussianProcessRegression.inverse_diagonal_update2!(λ, P, ϵ, y, tmp)
+        @test yABy ≈ yABy_exact rtol = 1e-6
+    end
+end
+
+@testset "Inverse diagonal update quadratic vector" begin
+    for n in (100, 200, 300), ne in (100, 200, 300)
+        L = LowerTriangular(rand(n, n))
+        A = Hermitian(L * L' + 1e-7 * I)
+        ϵ = 1e-5 .* rand(ne)
+        y = rand(n)
+        yABy = similar(ϵ)
+        yABy_exact = similar(yABy)
+        tmp = similar(y)
+        for i in 1:ne
+            B = Diagonal(ϵ[i] .* ones(n))
+            yABy_exact[i] = y' * inv(A + B) * y
+        end
+        λ, P = eigen(A)
+        GaussianProcessRegression.inverse_diagonal_update2!(yABy, λ, P, ϵ, y, tmp)
+        @test yABy ≈ yABy_exact rtol = 1e-6
+    end
+end
+
+#=
 @testset "Integration with sample noise" begin
     @testset "Zero test dim=$dim, n=$n, k=$k" for dim in 6:6, n in 100:20:400, k in 100:50:500
         x = rand(dim, n)
@@ -57,7 +127,7 @@ end
         @test σ0[2:end] ≈ zeros(k - 1) atol = 1e-5
     end
 
-    @testset "Shermann Morrison dim=$dim, n=$n, k=$k" for dim in 6:6, n in 100:20:100, k in 200:50:200
+    @testset "Shermann Morrison dim=$dim, n=$n, k=$k" for dim in 1:4, n in (100, 200), k in (100, 200)
         x = rand(dim, n)
         y = rand(n, k)
         model = GPRModel(SquaredExp(), x, y)
@@ -65,17 +135,23 @@ end
         noise = 1e-5 .* rand(k, n)
         μ, σ = integrate(model, a, b, sample_noise=noise)
         kxx = kernel(SquaredExp(), model.params, x)
+        wc = WtCache(model)
         ac = AntiDerivCache(model)
+        update_cache!(ac, model, model.params, a, b)
         tmp = similar(ac.k1)
         σ_exact = similar(y, k)
+        μ_exact = similar(y, k)
         ret = similar(y, 1)
         for l in 1:k
             @views kxx_noise = kxx .+ Diagonal(noise[l, :])
             kchol = cholesky(kxx_noise)
+            @views wt = kchol \ model.y[:, l]
+            μ_exact[l] = dot(wt, ac.k1)
             GaussianProcessRegression.var_integ_impl!(ret, nothing, ac.k1, ac.k2, kchol, tmp)
             σ_exact[l] = ret[1]
         end
-        @test σ ≈ σ_exact atol = 1e-4
+        @test μ ≈ μ_exact atol = 1e-5
+        @test σ ≈ σ_exact atol = 1e-5
     end
 end
 
@@ -93,3 +169,4 @@ end
         @test μ[1] ≈ gauss_integral atol = 3sqrt(σ[1])
     end
 end
+=#

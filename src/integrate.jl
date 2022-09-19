@@ -79,7 +79,7 @@ function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp, sample_noi
     return nothing
 end
 
-function inverse_diagonal_update!(ABy, λ, P, ϵ, y, tmp)
+function inverse_diagonal_update!(ABy, λ, P, ϵ::Float64, y, tmp)
     tmp .= 1.0 ./ (λ .+ ϵ)
     mul!(ABy, P', y)
     tmp .*= ABy
@@ -127,9 +127,13 @@ function integrate!(Iout, var_Iout, md::AbstractGPRModel, hp, a, b, sample_noise
 end
 
 function integrate!(Iout, var_Iout, sample_noise, wc::AbstractWtCache, ac::AbstractAntiDerivCache)
-    mean_integ_impl!(Iout, wc.wt, ac.k1)
+    mean_integ_impl!(Iout, wc, ac)
     var_integ_impl!(var_Iout, sample_noise, wc, ac)
     return nothing
+end
+
+function mean_integ_impl!(Iout, wc::AbstractWtCache, ac::AbstractAntiDerivCache)
+    mean_integ_impl!(Iout, wc.wt, ac.k1)
 end
 
 function mean_integ_impl!(Iout, wt, k1)
@@ -137,19 +141,30 @@ function mean_integ_impl!(Iout, wt, k1)
     return nothing
 end
 
-function var_integ_impl!(var_Iout, ::Nothing, wc, ac)
-    @views tt = wc.tmp[:, 1]
-    tt .= ac.k1
+
+function var_integ_impl!(var_Iout, ::Nothing, wc::AbstractWtCache, ac::AbstractAntiDerivCache)
     kchol = Cholesky(UpperTriangular(wc.kxx))
-    ldiv!(kchol.L, tt)
-    var_Iout[1] = ac.k2[1] - dot(tt, tt)
+    var_integ_impl!(var_Iout, nothing, kchol, ac.k1, ac.k2, wc.tmp)
     return nothing
 end
 
-function var_integ_impl!(var_Iout, sample_noise, wc, ac)
-    @views tt = wc.tmp[:, 1]
-    tt .= ac.k1
-    inverse_diagonal_update2!(var_Iout, wc.λ, wc.P, sample_noise, ac.k1, tt)
-    var_Iout .= ac.k2[1] .- var_Iout
+function var_integ_impl!(var_Iout, ::Nothing, kchol, k1, k2, tmp)
+    @views tt = tmp[:, 1]
+    tt .= k1
+    ldiv!(kchol.L, tt)
+    var_Iout[1] = k2[1] - dot(tt, tt)
+    return nothing
+end
+
+function var_integ_impl!(var_Iout, sample_noise, wc::AbstractWtCache, ac::AbstractAntiDerivCache)
+    var_integ_impl!(var_Iout, sample_noise, wc.λ, wc.P, ac.k1, ac.k2, wc.tmp)
+    return nothing
+end
+
+function var_integ_impl!(var_Iout, sample_noise, λ, P, k1, k2, tmp)
+    @views tt = tmp[:, 1]
+    tt .= k1
+    inverse_diagonal_update2!(var_Iout, λ, P, sample_noise, k1, tt)
+    var_Iout .= k2[1] .- var_Iout
     return nothing
 end

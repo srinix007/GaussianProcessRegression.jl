@@ -112,46 +112,44 @@ end
     end
 end
 
-#=
 @testset "Integration with sample noise" begin
-    @testset "Zero test dim=$dim, n=$n, k=$k" for dim in 6:6, n in 100:20:400, k in 100:50:500
+    @testset "Zero test dim=$dim, n=$n, k=$k" for dim in 1:4, n in (100, 200, 300), k in (100, 200, 300)
         x = rand(dim, n)
         y = rand(n, k)
         model = GPRModel(SquaredExp(), x, y)
         a, b = (zeros(dim), ones(dim))
         μ, σ = integrate(model, a, b, sample_noise=nothing)
-        zero_noise = zeros(k, n)
+        zero_noise = zeros(k)
         μ0, σ0 = integrate(model, a, b, sample_noise=zero_noise)
-        @test μ ≈ μ0
-        @test σ[1] ≈ σ0[2] atol = 1e-7
-        @test σ0[2:end] ≈ zeros(k - 1) atol = 1e-5
+        @test μ ≈ μ0 rtol = 1e-5
+        @test σ[1] ≈ σ0[2] rtol = 1e-4
+        @test σ0[2:end] ≈ zeros(k - 1) atol = 1e-7
     end
 
-    @testset "Shermann Morrison dim=$dim, n=$n, k=$k" for dim in 1:4, n in (100, 200), k in (100, 200)
+    @testset "Inverse perturbation dim=$dim, n=$n, ne=$ne" for dim in 1:4, n in (100, 200, 300), ne in (100, 200, 300)
         x = rand(dim, n)
-        y = rand(n, k)
+        y = rand(n, ne)
         model = GPRModel(SquaredExp(), x, y)
-        a, b = (zeros(dim), ones(dim))
-        noise = 1e-5 .* rand(k, n)
-        μ, σ = integrate(model, a, b, sample_noise=noise)
+        noise = 1e-5 .* rand(ne)
         kxx = kernel(SquaredExp(), model.params, x)
-        wc = WtCache(model)
+        a, b = zeros(dim), ones(dim)
         ac = AntiDerivCache(model)
         update_cache!(ac, model, model.params, a, b)
-        tmp = similar(ac.k1)
-        σ_exact = similar(y, k)
-        μ_exact = similar(y, k)
+        μ, Σ = integrate(model, a, b, sample_noise=noise)
+        μ_exact = similar(μ)
+        Σ_exact = similar(Σ)
+        tmp = similar(y)
         ret = similar(y, 1)
-        for l in 1:k
-            @views kxx_noise = kxx .+ Diagonal(noise[l, :])
+        for i in 1:ne
+            kxx_noise = kxx + Diagonal(noise[i] .* ones(n))
             kchol = cholesky(kxx_noise)
-            @views wt = kchol \ model.y[:, l]
-            μ_exact[l] = dot(wt, ac.k1)
-            GaussianProcessRegression.var_integ_impl!(ret, nothing, ac.k1, ac.k2, kchol, tmp)
-            σ_exact[l] = ret[1]
+            @views wt = (kchol \ model.y[:, i])
+            μ_exact[i] = dot(wt, ac.k1)
+            GaussianProcessRegression.var_integ_impl!(ret, nothing, kchol, ac.k1, ac.k2, tmp)
+            Σ_exact[i] = ret[1]
         end
-        @test μ ≈ μ_exact atol = 1e-5
-        @test σ ≈ σ_exact atol = 1e-5
+        @test μ ≈ μ_exact rtol = 1e-5
+        @test Σ ≈ Σ_exact rtol = 1e-5
     end
 end
 
@@ -169,4 +167,3 @@ end
         @test μ[1] ≈ gauss_integral atol = 3sqrt(σ[1])
     end
 end
-=#

@@ -31,7 +31,7 @@ as the dimension of the input data x.
 end
 
 @inline function kernel!(kern, ::T, hp, x; dist=Euclidean(),
-    ϵ=1e-7) where {T<:AbstractKernel}
+    ϵ=1e-8) where {T<:AbstractKernel}
     return kernel!(kern, T(), hp, x, x; dist=dist, ϵ=ϵ)
 end
 

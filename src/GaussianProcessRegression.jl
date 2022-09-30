@@ -3,6 +3,7 @@ module GaussianProcessRegression
 using LazyTensors
 using GPUArrays
 using LinearAlgebra
+using FastLapackInterface
 using LoopVectorization
 using Optim
 using Random

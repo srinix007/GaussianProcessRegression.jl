@@ -72,7 +72,7 @@ end
 function update_cache!(wc::AbstractWtCache, md::AbstractGPRModel, hp, sample_noise)
     kernel!(wc.kxx, md.covar, hp, md.x)
     # W = P(λ + σ)⁻¹P⁻¹y
-    eig = eigen!(wc.kxx)
+    eig = Eigen(LAPACK.syevr!(wc.ws, 'V', 'A', 'U', wc.kxx, 0.0, 0.0, 0, 0, -1.0)...)
     wc.λ .= eig.values
     wc.P .= eig.vectors
     inverse_diagonal_update!(wc.wt, wc.λ, wc.P, sample_noise, md.y, wc.tmp)

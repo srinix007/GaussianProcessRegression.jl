@@ -108,7 +108,7 @@ end
         end
         λ, P = eigen(A)
         GaussianProcessRegression.inverse_diagonal_update2!(yABy, λ, P, ϵ, y, tmp)
-        @test yABy ≈ yABy_exact rtol = 1e-6
+        @test yABy ≈ yABy_exact rtol = 1e-5
     end
 end
 

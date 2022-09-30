@@ -4,6 +4,7 @@ authors = ["srinix <srinix@protonmail.com> and contributors"]
 version = "0.1.0"
 
 [deps]
+FastLapackInterface = "29a986be-02c6-4525-aec4-84b980013641"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 LazyTensors = "862b1c87-f07d-406f-9f31-85f9a7d9607f"
 LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"

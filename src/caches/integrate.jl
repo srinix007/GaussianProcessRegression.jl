@@ -15,12 +15,13 @@ function AntiDerivCache(md::AbstractGPRModel)
     return AntiDerivCache{eltype(k1),typeof(k1),typeof(k2)}(k1, k2)
 end
 
-struct WtCache{T,W<:AbstractArray{T},K<:AbstractArray{T},L<:AbstractVector{T},P<:AbstractArray{T}} <: AbstractWtCache
+struct WtCache{T,W<:AbstractArray{T},K<:AbstractArray{T},L<:AbstractVector{T},P<:AbstractArray{T},WS<:Workspace} <: AbstractWtCache
     wt::W
     kxx::K
     λ::L
     P::P
     tmp::W
+    ws::WS
 end
 
 function WtCache(md::AbstractGPRModel)
@@ -29,6 +30,7 @@ function WtCache(md::AbstractGPRModel)
     kxx = similar(md.x, nx, nx)
     λ = similar(md.x, nx)
     P = similar(md.x, nx, nx)
+    ws = HermitianEigenWs(kxx, vecs=true)
     tmp = similar(wt)
-    return WtCache{eltype(wt),typeof.((wt, kxx, λ, P))...}(wt, kxx, λ, P, tmp)
+    return WtCache{eltype(wt),typeof.((wt, kxx, λ, P, ws))...}(wt, kxx, λ, P, tmp, ws)
 end

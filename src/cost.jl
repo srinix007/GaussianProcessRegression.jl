@@ -75,7 +75,8 @@ function update_cache!(tc::MllLossCache, hp, md)
     tc.hp .= hp
     kernel!(tc.kchol_base, md.covar, hp, md.x)
     kchol = cholesky!(Hermitian(tc.kchol_base))
-    ldiv!(tc.α, kchol, md.y)
+    y = get_sample(md)
+    ldiv!(tc.α, kchol, y)
     return nothing
 end
 
@@ -84,7 +85,8 @@ function update_cache!(tc::MllGradCache, hp, md::AbstractGPRModel)
     kernel!(tc.kerns[1], md.covar, hp, md.x)
     tc.kchol_base .= tc.kerns[1]
     kchol = cholesky!(Hermitian(tc.kchol_base))
-    ldiv!(tc.α, kchol, md.y)
+    y = get_sample(md)
+    ldiv!(tc.α, kchol, y)
     fill!(tc.K⁻¹, zero(eltype(tc.K⁻¹)))
     tc.K⁻¹[diagind(tc.K⁻¹)] .= one(eltype(tc.K⁻¹))
     ldiv!(kchol, tc.K⁻¹)
@@ -100,7 +102,8 @@ function update_cache!(tc::MllGradCache, hp, md::AbstractGPRModel{<:ComposedKern
     end
     add_noise!(tc.kchol_base, md.covar, tc.hp, md.x)
     kchol = cholesky!(Hermitian(tc.kchol_base))
-    ldiv!(tc.α, kchol, md.y)
+    y = get_sample(md)
+    ldiv!(tc.α, kchol, y)
     fill!(tc.K⁻¹, zero(eltype(tc.K⁻¹)))
     tc.K⁻¹[diagind(tc.K⁻¹)] .= one(eltype(tc.K⁻¹))
     ldiv!(kchol, tc.K⁻¹)
@@ -109,7 +112,8 @@ end
 
 function loss(::MarginalLikelihood, md::AbstractGPRModel, tc::AbstractCostCache)
     kchol = Cholesky(UpperTriangular(tc.kchol_base))
-    return loss(MarginalLikelihood(), kchol, md.y, tc.α)
+    y = get_sample(md)
+    return loss(MarginalLikelihood(), kchol, y, tc.α)
 end
 
 function grad!(∇L, ::MarginalLikelihood, md::AbstractGPRModel, tc::AbstractCostCache)

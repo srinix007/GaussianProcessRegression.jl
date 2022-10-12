@@ -20,19 +20,28 @@ struct GPRModel{K<:AbstractKernel,T,P<:AbstractArray{T},X<:AbstractArray{T,2},
     params::P
     x::X
     y::Y
+    train_axis::Int32
 end
 
-function GPRModel(cov, hp, x, y)
+function GPRModel(cov, hp, x, y; train_axis=3)
     size(hp, 1) == dim_hp(cov, size(x, 1)) || error("Parameter size mismatch.")
     last(size(x)) == first(size(y)) || error("x and y size mismatch.")
-    return GPRModel{typeof(cov),eltype(x),typeof.((hp, x, y))...}(cov, hp, x, y)
+    return GPRModel{typeof(cov),eltype(x),typeof.((hp, x, y))...}(cov, hp, x, y, train_axis)
 end
 
-function GPRModel(cov, x, y)
+function GPRModel(cov, x, y; train_axis=3)
     dim = size(x, 1)
     T = eltype(x)
     hp = rand(T, dim_hp(cov, dim))
-    return GPRModel(cov, hp, x, y)
+    return GPRModel(cov, hp, x, y, train_axis=train_axis)
+end
+
+function get_sample(md::GPRModel{K,T,P,X,Y}) where {K,T,P,X,Y<:AbstractArray{T,2}}
+    return view(md.y, :, md.train_axis)
+end
+
+function get_sample(md::GPRModel{K,T,P,X,Y}) where {K,T,P,X,Y<:AbstractArray{T,1}}
+    return md.y
 end
 
 function Base.similar(md::AbstractGPRModel, hp, x, y)

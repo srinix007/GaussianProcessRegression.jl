@@ -26,7 +26,7 @@ include("deriv_covar.jl")
 
 export AbstractModel, AbstractGPRModel
 export GPRModel
-export update_params!
+export update_params!, get_sample
 
 include("models.jl")
 

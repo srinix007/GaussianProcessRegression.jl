@@ -89,7 +89,7 @@ end
 
 function inverse_diagonal_update!(ABy, λ, P, ϵ::AbstractVector, y, tmp)
     na = [CartesianIndex()]
-    tmp .= 1.0 ./ (λ[:, na] .+ ϵ[na, :])
+    @views tmp .= 1.0 ./ (λ[:, na] .+ ϵ[na, :])
     mul!(ABy, P', y)
     tmp .*= ABy
     mul!(ABy, P, tmp)

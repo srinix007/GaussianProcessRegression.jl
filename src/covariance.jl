@@ -39,7 +39,9 @@ function kernel(::K, hp, x, xp; dist=Euclidean(), ϵ=1e-8) where {K<:AbstractKer
     kern = similar(x, size(x)[2], size(xp)[2])
     threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
-        kern[diagind(kern)] .+= ϵ
+        for i in axes(kern, 1)
+            kern[i, i] += ϵ
+        end
     end
     return kern
 end
@@ -48,7 +50,9 @@ function kernel!(kern, ::K, hp, x, xp; dist=Euclidean(),
     ϵ=1e-8) where {K<:AbstractKernel}
     threaded_kernel_impl!(K(), kern, hp, x, xp, dist)
     if x === xp
-        kern[diagind(kern)] .+= ϵ
+        for i in axes(kern, 1)
+            kern[i, i] += ϵ
+        end
     end
     return nothing
 end
@@ -83,7 +87,7 @@ function kernel_impl!(::SquaredExp, kern, hp, x, xp, dist=Euclidean(), ix=last(a
     n = [CartesianIndex()]
     ls = @view hp[2:end]
     σ = hp[1:1]
-    xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
+    @views xs, xps = (x[:, ix] .* ls[:, n], xp[:, ixp] .* ls[:, n])
     kernv = view(kern, ix, ixp)
     distance!(dist, kernv, lz(xs), lz(xps))
     kernv .= (σ .^ 2) .* exp.(-1.0 .* kernv)

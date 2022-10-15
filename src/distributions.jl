@@ -22,9 +22,9 @@ function NormalDistribution(μ, Σ::AbstractArray)
     return NormalDistribution{eltype(μ),typeof(μ),typeof(Σ),typeof(Σ_ch)}(μ, Σ, Σ_ch)
 end
 
-function sample(N::NormalDistribution)
+function sample(N::NormalDistribution; rng=Xoshiro(1))
     dim = length(N.μ)
-    s = randn(dim)
+    s = randn(rng, dim)
     s .= N.Σ_ch.L * s .+ N.μ
     return s
 end
